@@ -1,14 +1,15 @@
 import React from 'react';
-import { X, Shield, Download, Upload, RefreshCw, Smartphone } from 'lucide-react';
+import { X, Shield, Download, Upload, RefreshCw, Smartphone, LogOut } from 'lucide-react';
 import { db } from '../lib/db';
 
 interface DrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (screen: string) => void;
+  onLogout: () => void;
 }
 
-export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, onNavigate }) => {
+export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, onNavigate, onLogout }) => {
   if (!isOpen) return null;
 
   const handleExport = async () => {
@@ -111,8 +112,8 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, onNavigate }) =
           >
             <Shield className="w-5 h-5 text-[#1749B5]" />
             <div>
-              <div className="text-sm">Panel Admin</div>
-              <div className="text-xs text-[#6F7C92] font-normal">Pengaturan tarif & saldo</div>
+              <div className="text-sm">Panel Admin & Keamanan</div>
+              <div className="text-xs text-[#6F7C92] font-normal">Tarif, cloud & ubah password</div>
             </div>
           </button>
 
@@ -150,6 +151,23 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, onNavigate }) =
             <div>
               <div className="text-sm">Reset Data Pabrik</div>
               <div className="text-xs text-rose-500 font-normal">Kembalikan ke data bawaan</div>
+            </div>
+          </button>
+
+          {/* Kunci Kasir / Logout */}
+          <button
+            onClick={() => {
+              onClose();
+              if (confirm('Kunci aplikasi kasir sekarang?')) {
+                onLogout();
+              }
+            }}
+            className="w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-left font-semibold text-slate-800 hover:bg-slate-100 border border-slate-300 btn-press mt-4"
+          >
+            <LogOut className="w-5 h-5 text-[#09275F]" />
+            <div>
+              <div className="text-sm font-bold">Kunci Kasir / Keluar</div>
+              <div className="text-xs text-[#6F7C92] font-normal">Membutuhkan password untuk masuk</div>
             </div>
           </button>
         </div>

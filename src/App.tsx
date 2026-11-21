@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Drawer } from './components/Drawer';
 import { BottomNav } from './components/BottomNav';
@@ -11,10 +11,28 @@ import { TotalScreen } from './components/screens/TotalScreen';
 import { PulsaScreen } from './components/screens/PulsaScreen';
 import { QrisScreen } from './components/screens/QrisScreen';
 import { AdminScreen } from './components/screens/AdminScreen';
+import { LoginScreen } from './components/screens/LoginScreen';
+import { isUserAuthenticated, clearAuthSession, initializeAuth } from './lib/auth';
 
 export const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => isUserAuthenticated());
   const [currentScreen, setCurrentScreen] = useState<string>('dashboard');
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
+  const handleLogout = () => {
+    clearAuthSession();
+    setIsAuthenticated(false);
+    setCurrentScreen('dashboard');
+  };
+
+  // Jika belum login, tampilkan layar login aman
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   const getScreenTitle = (): string => {
     switch (currentScreen) {
@@ -93,9 +111,10 @@ export const App: React.FC = () => {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onNavigate={setCurrentScreen}
+        onLogout={handleLogout}
       />
 
-      {/* Persistent Bottom Nav (Single-Thumb Ergonomics) */}
+      {/* Persistent Bottom Nav */}
       <BottomNav
         currentScreen={currentScreen}
         onNavigate={setCurrentScreen}
