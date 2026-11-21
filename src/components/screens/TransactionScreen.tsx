@@ -5,6 +5,7 @@ import { Money } from '../../lib/money';
 import { calculateAdminFee } from '../../lib/tariffs';
 import { LedgerMath } from '../../lib/ledgerMath';
 import { KeypadModal } from '../KeypadModal';
+import { notifyTransaction } from '../../lib/telegram';
 
 interface TransactionScreenProps {
   channel: TxChannel;
@@ -72,6 +73,17 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
       laba: laba
     });
     await loadRows();
+
+    if (type && nominalRibuan > 0) {
+      notifyTransaction({
+        channel,
+        type,
+        nominal: nominalRibuan,
+        laba,
+        saldo: finalSaldo,
+        baris: row.baris
+      });
+    }
   };
 
   const handleSaveAldea = async (valRibuan: number) => {

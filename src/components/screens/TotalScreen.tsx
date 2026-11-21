@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../../lib/db';
 import { Money } from '../../lib/money';
 import { CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { notifyClosing } from '../../lib/telegram';
 
 interface TotalScreenProps {
   onBack: () => void;
@@ -102,6 +103,13 @@ export const TotalScreen: React.FC<TotalScreenProps> = () => {
 
     // Reset pengeluaran aktif
     await db.expenses.clear();
+
+    notifyClosing({
+      date: today,
+      omset,
+      grossProfit: labaKotor,
+      netProfit: labaBersih
+    });
 
     setClosingDone(true);
     await calculateTotalan();

@@ -3,6 +3,7 @@ import { db } from '../../lib/db';
 import { Kasbon } from '../../types';
 import { Money } from '../../lib/money';
 import { Plus, CheckCircle, Clock, Trash2 } from 'lucide-react';
+import { notifyKasbon } from '../../lib/telegram';
 
 interface KasbonScreenProps {
   onBack: () => void;
@@ -46,6 +47,7 @@ export const KasbonScreen: React.FC<KasbonScreenProps> = () => {
         lunas: true,
         tanggalLunas: Date.now()
       });
+      notifyKasbon({ name: k.nama, amountRupiah: k.nominal, isPaid: true });
       await loadKasbon();
     }
   };
@@ -75,6 +77,14 @@ export const KasbonScreen: React.FC<KasbonScreenProps> = () => {
     setAmountRibuan('');
     setNote('');
     setIsAddOpen(false);
+
+    notifyKasbon({
+      name: name.trim(),
+      amountRupiah: ribuan * 1000,
+      isPaid: false,
+      note: note.trim()
+    });
+
     await loadKasbon();
   };
 

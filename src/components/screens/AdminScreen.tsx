@@ -3,7 +3,8 @@ import { BANK_TARIFFS, DANA_OVO_TARIFFS } from '../../lib/tariffs';
 import { Money } from '../../lib/money';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { changePassword } from '../../lib/auth';
-import { ShieldCheck, Cloud, Database, Lock, KeyRound, CheckCircle, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Cloud, Database, Lock, KeyRound, CheckCircle, AlertCircle, Send } from 'lucide-react';
+import { isTelegramConfigured, sendTelegramMessage } from '../../lib/telegram';
 
 interface AdminScreenProps {
   onBack: () => void;
@@ -234,6 +235,38 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
             <p className="text-[11px] text-blue-800/80">
               File <code className="font-semibold">supabase/schema.sql</code> sudah dibuat. Anda tinggal menyalin isinya dan menjalankan di SQL Editor pada dashboard Supabase Anda.
             </p>
+          </div>
+
+          {/* Telegram Status & Test */}
+          <div className="p-3 bg-slate-50 rounded-xl border border-[#E0E7F2] space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-[#09275F] flex items-center gap-1.5">
+                <Send className="w-4 h-4 text-sky-500" />
+                <span>Notifikasi Telegram:</span>
+              </span>
+              <span className={`font-bold ${isTelegramConfigured ? 'text-emerald-600' : 'text-slate-400'}`}>
+                {isTelegramConfigured ? 'Aktif' : 'Belum Diatur'}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#6F7C92]">
+              Setiap transaksi masuk, penjualan produk, kasbon, closing, dan error sistem otomatis dikirim ke Telegram Anda.
+            </p>
+            {isTelegramConfigured ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await sendTelegramMessage('🚀 <b>Tes Notifikasi Aldea POS</b>\nBot Telegram Anda telah berhasil terhubung dan siap menerima notifikasi transaksi!');
+                  alert(ok ? 'Pesan tes berhasil dikirim ke Telegram Anda!' : 'Gagal mengirim pesan tes. Periksa kembali Bot Token & Chat ID di .env.local.');
+                }}
+                className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs rounded-lg btn-press shadow-xs"
+              >
+                Kirim Pesan Tes ke Telegram
+              </button>
+            ) : (
+              <p className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+                Isi <code>VITE_TELEGRAM_BOT_TOKEN</code> dan <code>VITE_TELEGRAM_CHAT_ID</code> di file <code>.env.local</code> untuk mengaktifkan notifikasi bot.
+              </p>
+            )}
           </div>
         </div>
       )}

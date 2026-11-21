@@ -3,6 +3,7 @@ import { db } from '../../lib/db';
 import { Expense } from '../../types';
 import { Money } from '../../lib/money';
 import { Plus, Trash2, Receipt } from 'lucide-react';
+import { notifyExpense } from '../../lib/telegram';
 
 interface ExpenseScreenProps {
   onBack: () => void;
@@ -46,6 +47,13 @@ export const ExpenseScreen: React.FC<ExpenseScreenProps> = () => {
     setAmountRibuan('');
     setNote('');
     setIsAddOpen(false);
+
+    notifyExpense({
+      name: name.trim(),
+      amount,
+      type: jenis
+    });
+
     await loadExpenses();
   };
 

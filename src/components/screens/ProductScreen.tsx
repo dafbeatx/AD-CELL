@@ -4,6 +4,7 @@ import { Product, ProductCategory } from '../../types';
 import { Money } from '../../lib/money';
 import { Plus, Trash2, ArrowUpRight } from 'lucide-react';
 import { KeypadModal } from '../KeypadModal';
+import { notifyProductSale } from '../../lib/telegram';
 
 interface ProductScreenProps {
   category: ProductCategory;
@@ -58,6 +59,14 @@ export const ProductScreen: React.FC<ProductScreenProps> = ({ category }) => {
       modal: p.modal,
       jual: p.jual,
       waktu: Date.now()
+    });
+
+    notifyProductSale({
+      model: p.model,
+      category,
+      price: p.jual,
+      profit: p.jual - p.modal,
+      remaining: nextSisa
     });
 
     await loadProducts();
