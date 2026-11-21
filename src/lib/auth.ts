@@ -13,11 +13,11 @@ export async function sha256(message: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Ambil hash tersimpan dari Supabase (SQL), localStorage, atau IndexedDB */
-export async function getStoredPasswordHash(): Promise<string> {
+/** Ambil hash tersimpan dari Supabase (SQL Global) sebagai sumber kebenaran utama */
+export async function getStoredPasswordHash(): Promise<{ hash: string; source: 'cloud' | 'local' }> {
   const defaultHash = await sha256(DEFAULT_PASSWORD);
 
-  // 1. Coba ambil dari Supabase (Cloud SQL) jika online
+  // 1. Prioritas Utama: Ambil dari Supabase (Cloud SQL Global)
   if (supabase) {
     try {
       const { data, error } = await supabase
@@ -27,38 +27,41 @@ export async function getStoredPasswordHash(): Promise<string> {
         .maybeSingle();
 
       if (!error && data && data.value) {
-        // Simpan salinan ke localStorage & IndexedDB agar sinkron
+        // Simpan ke local cache agar saat offline tetap sinkron
         localStorage.setItem(LOCAL_STORAGE_HASH_KEY, data.value);
         db.meta.put({ key: 'admin_password_hash', value: data.value }).catch(() => {});
-        return data.value;
+        return { hash: data.value, source: 'cloud' };
       }
-    } catch (_) {
-      // Offline fallback
+      if (error) {
+        console.warn('Supabase query error (mungkin tabel app_settings belum di-run di SQL Editor):', error);
+      }
+    } catch (err) {
+      console.warn('Gagal koneksi ke Supabase:', err);
     }
   }
 
-  // 2. Ambil dari localStorage (Sangat cepat & persisten)
+  // 2. Cadangan: Ambil dari localStorage
   const localHash = localStorage.getItem(LOCAL_STORAGE_HASH_KEY);
   if (localHash) {
-    return localHash;
+    return { hash: localHash, source: 'local' };
   }
 
-  // 3. Ambil dari IndexedDB
+  // 3. Cadangan: Ambil dari IndexedDB
   try {
     const dbItem = await db.meta.get('admin_password_hash');
     if (dbItem && dbItem.value) {
       localStorage.setItem(LOCAL_STORAGE_HASH_KEY, dbItem.value);
-      return dbItem.value;
+      return { hash: dbItem.value, source: 'local' };
     }
   } catch (_) {}
 
-  // 4. Jika benar-benar belum pernah ada password, set default
+  // 4. Jika benar-benar belum pernah dibuat di mana pun, gunakan default
   localStorage.setItem(LOCAL_STORAGE_HASH_KEY, defaultHash);
   try {
     await db.meta.put({ key: 'admin_password_hash', value: defaultHash });
   } catch (_) {}
 
-  return defaultHash;
+  return { hash: defaultHash, source: 'local' };
 }
 
 /** Inisialisasi awal */
@@ -68,19 +71,18 @@ export async function initializeAuth(): Promise<void> {
 
 /** Cek apakah password saat ini masih menggunakan default */
 export async function isDefaultPassword(): Promise<boolean> {
-  const currentHash = await getStoredPasswordHash();
+  const { hash } = await getStoredPasswordHash();
   const defaultHash = await sha256(DEFAULT_PASSWORD);
-  return currentHash === defaultHash;
+  return hash === defaultHash;
 }
 
 /** Verifikasi password input terhadap hash tersimpan */
 export async function verifyPassword(password: string): Promise<boolean> {
   const inputHash = await sha256(password);
-  const storedHash = await getStoredPasswordHash();
+  const { hash: storedHash } = await getStoredPasswordHash();
   const defaultHash = await sha256(DEFAULT_PASSWORD);
 
-  // Proteksi mutlak: Jika password sudah pernah diganti (storedHash != defaultHash),
-  // maka input default password DIJAMIN DITOLAK!
+  // Jika password di Supabase/cloud sudah diganti, tolak password default lama!
   if (storedHash !== defaultHash && inputHash === defaultHash) {
     return false;
   }
@@ -88,14 +90,14 @@ export async function verifyPassword(password: string): Promise<boolean> {
   return inputHash === storedHash;
 }
 
-/** Ubah password admin (simpan ke Supabase SQL + localStorage + IndexedDB) */
+/** Ubah password admin secara global ke Supabase (SQL) */
 export async function changePassword(
   oldPass: string,
   newPass: string
 ): Promise<{ success: boolean; message: string }> {
   const isValidOld = await verifyPassword(oldPass);
   if (!isValidOld) {
-    return { success: false, message: 'Password lama salah!' };
+    return { success: false, message: 'Password saat ini salah!' };
   }
 
   if (newPass.length < 6) {
@@ -104,16 +106,8 @@ export async function changePassword(
 
   const newHash = await sha256(newPass);
 
-  // 1. Simpan ke localStorage (instan)
-  localStorage.setItem(LOCAL_STORAGE_HASH_KEY, newHash);
-
-  // 2. Simpan ke IndexedDB
-  try {
-    await db.meta.put({ key: 'admin_password_hash', value: newHash });
-  } catch (_) {}
-
-  // 3. Simpan ke Supabase SQL (agar sinkron ke semua perangkat HP/Laptop)
-  let cloudSaved = false;
+  // 1. Simpan ke Supabase Cloud SQL jika tersambung (Wajib agar global untuk semua perangkat)
+  let cloudSuccess = false;
   if (supabase) {
     try {
       const { error } = await supabase
@@ -123,15 +117,33 @@ export async function changePassword(
           value: newHash,
           updated_at: new Date().toISOString()
         });
-      if (!error) cloudSaved = true;
-    } catch (_) {}
+
+      if (error) {
+        return {
+          success: false,
+          message: `Gagal simpan ke Supabase: ${error.message}. Buka SQL Editor di Supabase dan jalankan file supabase/schema.sql!`
+        };
+      }
+      cloudSuccess = true;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Gagal menghubungi server Supabase: ${err.message || err}`
+      };
+    }
   }
 
-  return { 
-    success: true, 
-    message: cloudSaved 
-      ? 'Password berhasil diubah dan disinkronkan ke Cloud Supabase!' 
-      : 'Password berhasil diubah di perangkat ini!' 
+  // 2. Simpan juga salinan ke localStorage & IndexedDB perangkat ini
+  localStorage.setItem(LOCAL_STORAGE_HASH_KEY, newHash);
+  try {
+    await db.meta.put({ key: 'admin_password_hash', value: newHash });
+  } catch (_) {}
+
+  return {
+    success: true,
+    message: cloudSuccess
+      ? 'Password berhasil diubah secara GLOBAL di Supabase Cloud! Semua perangkat sekarang menggunakan password baru ini.'
+      : 'Password berhasil diubah di penyimpanan lokal.'
   };
 }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, KeyRound, AlertCircle, ShieldAlert } from 'lucide-react';
-import { verifyPassword, setAuthSession, isDefaultPassword, DEFAULT_PASSWORD } from '../../lib/auth';
+import { Lock, Eye, EyeOff, KeyRound, AlertCircle, ShieldAlert, Cloud } from 'lucide-react';
+import { verifyPassword, setAuthSession, isDefaultPassword, DEFAULT_PASSWORD, getStoredPasswordHash } from '../../lib/auth';
+import { isSupabaseConfigured } from '../../lib/supabase';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -12,11 +13,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [isDefault, setIsDefault] = useState<boolean>(true);
+  const [authSource, setAuthSource] = useState<'cloud' | 'local'>('local');
 
   useEffect(() => {
     async function checkStatus() {
       const def = await isDefaultPassword();
+      const stored = await getStoredPasswordHash();
       setIsDefault(def);
+      setAuthSource(stored.source);
     }
     checkStatus();
   }, []);
@@ -38,7 +42,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         onLoginSuccess();
       } else {
         if (!isDefault && password === DEFAULT_PASSWORD) {
-          setErrorMsg('Password default sudah tidak berlaku karena telah diubah oleh Admin!');
+          setErrorMsg('Password default sudah tidak berlaku karena telah diubah secara global oleh Admin!');
         } else {
           setErrorMsg('Password salah! Periksa kembali huruf besar/kecil.');
         }
@@ -60,7 +64,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </div>
           <div>
             <h2 className="text-2xl font-black text-[#09275F] tracking-tight">ALDEA K POS</h2>
-            <p className="text-xs text-[#6F7C92] font-semibold mt-0.5">Aplikasi Kasir & Pembukuan Operasional</p>
+            <div className="flex items-center justify-center gap-1.5 mt-1">
+              <span className="text-xs text-[#6F7C92] font-semibold">Kasir & Pembukuan</span>
+              {isSupabaseConfigured && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  <Cloud className="w-3 h-3" />
+                  <span>{authSource === 'cloud' ? 'Supabase Global' : 'Local'}</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -127,13 +139,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </button>
             </div>
             <p className="text-[10px] text-[#6F7C92] pt-0.5">
-              Admin dapat mengganti password ini kapan saja melalui menu Panel Admin.
+              Admin dapat mengganti password ini secara global melalui menu Panel Admin.
             </p>
           </div>
         ) : (
           <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-center gap-2 font-medium">
             <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Password kasir telah diubah oleh Admin. Password default sudah tidak berlaku.</span>
+            <span>Password kasir telah diubah oleh Admin secara Global. Password default sudah tidak berlaku.</span>
           </div>
         )}
       </div>

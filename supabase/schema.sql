@@ -6,7 +6,19 @@
 -- 1. Enable UUID Extension
 create extension if not exists "uuid-ossp";
 
--- 2. TABEL PRODUK & STOK
+-- 2. TABEL PENGATURAN & KEAMANAN SISTEM (PASSWORD ADMIN GLOBAL)
+create table if not exists public.app_settings (
+    key text primary key,
+    value text not null,
+    updated_at timestamptz default now()
+);
+
+-- Seed password default awal (Aldea#2026) jika belum ada
+insert into public.app_settings (key, value)
+values ('admin_password_hash', 'fbb510fff57cea4fa8356bc12ebdc03f64361df79958b8dfcd452b3cf6b4b71e')
+on conflict (key) do nothing;
+
+-- 3. TABEL PRODUK & STOK
 create table if not exists public.products (
     id text primary key,
     kategori text not null check (kategori in ('Acc', 'Atk', 'Voucher')),
@@ -23,7 +35,7 @@ create table if not exists public.products (
     updated_at timestamptz default now()
 );
 
--- 3. TABEL PENJUALAN PRODUK
+-- 4. TABEL PENJUALAN PRODUK
 create table if not exists public.product_sales (
     id text primary key,
     product_id text references public.products(id) on delete cascade,
@@ -35,7 +47,7 @@ create table if not exists public.product_sales (
     created_at timestamptz default now()
 );
 
--- 4. TABEL TRANSAKSI KEUANGAN
+-- 5. TABEL TRANSAKSI KEUANGAN
 create table if not exists public.financial_transactions (
     id text primary key,
     channel text not null check (channel in ('Bank', 'Dana', 'Ovo', 'BCA')),
@@ -48,7 +60,7 @@ create table if not exists public.financial_transactions (
     updated_at timestamptz default now()
 );
 
--- 5. TABEL PENGELUARAN
+-- 6. TABEL PENGELUARAN
 create table if not exists public.expenses (
     id text primary key,
     nomor int not null,
@@ -59,7 +71,7 @@ create table if not exists public.expenses (
     created_at bigint not null
 );
 
--- 6. TABEL BUKU KASBON (PIUTANG)
+-- 7. TABEL BUKU KASBON (PIUTANG)
 create table if not exists public.kasbon (
     id text primary key,
     nama text not null,
@@ -70,7 +82,7 @@ create table if not exists public.kasbon (
     tanggal_lunas bigint
 );
 
--- 7. TABEL CLOSING HARIAN
+-- 8. TABEL CLOSING HARIAN
 create table if not exists public.daily_closings (
     id text primary key,
     tanggal date not null unique default current_date,
@@ -83,27 +95,45 @@ create table if not exists public.daily_closings (
     created_at timestamptz default now()
 );
 
--- 8. TABEL PENGATURAN & KEAMANAN SISTEM (PASSWORD ADMIN & SETTINGS)
-create table if not exists public.app_settings (
-    key text primary key,
-    value text not null,
-    updated_at timestamptz default now()
-);
+-- ==============================================================================
+-- HAK AKSES PERMISSION (WAJIB AGAR TIDAK MUNCUL "permission denied")
+-- ==============================================================================
+grant usage on schema public to anon, authenticated;
+grant all on all tables in schema public to anon, authenticated;
+grant all on all sequences in schema public to anon, authenticated;
+grant all on all routines in schema public to anon, authenticated;
+
+alter default privileges in schema public grant all on tables to anon, authenticated;
+alter default privileges in schema public grant all on sequences to anon, authenticated;
+alter default privileges in schema public grant all on routines to anon, authenticated;
 
 -- Row Level Security (RLS)
+alter table public.app_settings enable row level security;
 alter table public.products enable row level security;
 alter table public.product_sales enable row level security;
 alter table public.financial_transactions enable row level security;
 alter table public.expenses enable row level security;
 alter table public.kasbon enable row level security;
 alter table public.daily_closings enable row level security;
-alter table public.app_settings enable row level security;
 
--- Izinkan akses via Anon Key
-create policy "Allow all actions for anon on products" on public.products for all using (true) with check (true);
-create policy "Allow all actions for anon on product_sales" on public.product_sales for all using (true) with check (true);
-create policy "Allow all actions for anon on financial_transactions" on public.financial_transactions for all using (true) with check (true);
-create policy "Allow all actions for anon on expenses" on public.expenses for all using (true) with check (true);
-create policy "Allow all actions for anon on kasbon" on public.kasbon for all using (true) with check (true);
-create policy "Allow all actions for anon on daily_closings" on public.daily_closings for all using (true) with check (true);
+-- Izinkan akses penuh untuk anon dan authenticated
+drop policy if exists "Allow all actions for anon on app_settings" on public.app_settings;
 create policy "Allow all actions for anon on app_settings" on public.app_settings for all using (true) with check (true);
+
+drop policy if exists "Allow all actions for anon on products" on public.products;
+create policy "Allow all actions for anon on products" on public.products for all using (true) with check (true);
+
+drop policy if exists "Allow all actions for anon on product_sales" on public.product_sales;
+create policy "Allow all actions for anon on product_sales" on public.product_sales for all using (true) with check (true);
+
+drop policy if exists "Allow all actions for anon on financial_transactions" on public.financial_transactions;
+create policy "Allow all actions for anon on financial_transactions" on public.financial_transactions for all using (true) with check (true);
+
+drop policy if exists "Allow all actions for anon on expenses" on public.expenses;
+create policy "Allow all actions for anon on expenses" on public.expenses for all using (true) with check (true);
+
+drop policy if exists "Allow all actions for anon on kasbon" on public.kasbon;
+create policy "Allow all actions for anon on kasbon" on public.kasbon for all using (true) with check (true);
+
+drop policy if exists "Allow all actions for anon on daily_closings" on public.daily_closings;
+create policy "Allow all actions for anon on daily_closings" on public.daily_closings for all using (true) with check (true);
