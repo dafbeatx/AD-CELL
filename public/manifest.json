@@ -1,0 +1,16 @@
+{
+  "short_name": "Aldea POS",
+  "name": "Aldea K - Kasir & Keuangan",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#09275F",
+  "theme_color": "#09275F",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -1,0 +1,9 @@
+[
+    {"minimal":1,"maksimal":203,"admin":3},
+    {"minimal":204,"maksimal":505,"admin":4},
+    {"minimal":506,"maksimal":1005,"admin":5},
+    {"minimal":1006,"maksimal":2008,"admin":8},
+    {"minimal":2009,"maksimal":3010,"admin":10},
+    {"minimal":3011,"maksimal":4015,"admin":15},
+    {"minimal":4016,"maksimal":5020,"admin":20}
+]

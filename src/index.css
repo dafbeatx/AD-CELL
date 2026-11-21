@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --aldea-navy: #09275F;
+    --aldea-blue: #1749B5;
+    --aldea-blue-soft: #EBF1FD;
+    --aldea-cream: #F6F8FC;
+    --aldea-cream-soft: #F8FAFF;
+    --aldea-text: #182338;
+    --aldea-muted: #6F7C92;
+    --aldea-line: #E0E7F2;
+    --aldea-yellow: #D97706;
+    --aldea-red: #DC2626;
+    --aldea-green: #16A34A;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--aldea-text);
+    background-color: var(--aldea-cream);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    overscroll-behavior-y: none;
+  }
+}
+
+/* Number display with tabular numerals for high-speed POS scanning */
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Custom scrollbar for mobile web */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+/* Tactile button active press effect (Anti-slop tactile feedback) */
+.btn-press {
+  transition: transform 0.08s ease, filter 0.08s ease;
+}
+.btn-press:active {
+  transform: scale(0.97);
+  filter: brightness(0.93);
+}
