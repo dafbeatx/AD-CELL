@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, KeyRound, AlertCircle, ShieldAlert, Cloud } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, AlertCircle, ShieldAlert, Cloud } from 'lucide-react';
 import { verifyPassword, setAuthSession, isDefaultPassword, DEFAULT_PASSWORD, getStoredPasswordHash } from '../../lib/auth';
 import { isSupabaseConfigured } from '../../lib/supabase';
 
@@ -59,9 +59,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-[#E0E7F2] p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 bg-[#09275F] text-white rounded-2xl mx-auto flex items-center justify-center shadow-md">
-            <Lock className="w-7 h-7 text-amber-400" />
-          </div>
+          <img
+            src="/logo.webp"
+            alt="Aldea Logo"
+            className="w-20 h-20 object-contain mx-auto drop-shadow-md rounded-2xl"
+          />
           <div>
             <h2 className="text-2xl font-black text-[#09275F] tracking-tight">ALDEA K POS</h2>
             <div className="flex items-center justify-center gap-1.5 mt-1">

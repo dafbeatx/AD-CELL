@@ -58,9 +58,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           <h2 className="text-2xl font-black tracking-tight">ALDEA K</h2>
           <p className="text-xs text-blue-100/80 mt-0.5">Versi Modern • Local-First Cloud POS</p>
         </div>
-        <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center font-black text-xl text-white border border-white/20">
-          AD
-        </div>
+        <img
+          src="/logo.webp"
+          alt="Aldea Logo"
+          className="w-14 h-14 object-contain rounded-xl drop-shadow-md bg-white/10 p-0.5 border border-white/20"
+        />
       </div>
 
       {/* Ringkasan Kilat Hari Ini */}

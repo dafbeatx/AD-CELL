@@ -3,9 +3,14 @@
   "name": "Aldea K - Kasir & Keuangan",
   "icons": [
     {
-      "src": "/vite.svg",
-      "type": "image/svg+xml",
-      "sizes": "192x192 512x512"
+      "src": "/logo.webp",
+      "type": "image/webp",
+      "sizes": "512x512"
+    },
+    {
+      "src": "/favicon.webp",
+      "type": "image/webp",
+      "sizes": "64x64"
     }
   ],
   "start_url": "/",

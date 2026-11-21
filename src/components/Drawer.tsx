@@ -92,9 +92,12 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, onNavigate, onL
       <div className="relative w-72 max-w-[85vw] bg-white h-full flex flex-col shadow-2xl z-10">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-16 bg-[#09275F] text-white">
-          <div>
-            <h2 className="font-bold text-lg">Menu Aldea POS</h2>
-            <p className="text-xs text-blue-200">Mobile-First Kasir & Keuangan</p>
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.webp" alt="Aldea Logo" className="w-10 h-10 object-contain rounded-lg" />
+            <div>
+              <h2 className="font-bold text-base leading-tight">Aldea POS</h2>
+              <p className="text-[11px] text-blue-200">Kasir & Keuangan</p>
+            </div>
           </div>
           <button 
             onClick={onClose}

@@ -37,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
             <Menu className="w-6 h-6" />
           </button>
         )}
+        <img src="/favicon.webp" alt="Aldea Logo" className="w-6 h-6 object-contain rounded-md" />
         <h1 className="text-lg font-bold tracking-tight truncate max-w-[200px]">
           {title}
         </h1>
