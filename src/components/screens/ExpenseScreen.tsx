@@ -137,7 +137,7 @@ export const ExpenseScreen: React.FC<ExpenseScreenProps> = () => {
                 placeholder="Contoh: Beli Kertas Struk / Token Listrik"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-sm font-semibold outline-none focus:border-[#1749B5]"
+                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-sm font-semibold outline-none focus:ring-1 focus:ring-[#1749B5]"
               />
             </div>
             <div>
@@ -147,7 +147,7 @@ export const ExpenseScreen: React.FC<ExpenseScreenProps> = () => {
                 placeholder="Contoh: 25 untuk Rp25.000"
                 value={amountRibuan}
                 onChange={e => setAmountRibuan(e.target.value)}
-                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-base font-extrabold font-tabular outline-none focus:border-[#1749B5]"
+                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-base font-extrabold font-tabular outline-none focus:ring-1 focus:ring-[#1749B5]"
               />
             </div>
             <div>

@@ -79,7 +79,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   setPassword(e.target.value);
                   if (errorMsg) setErrorMsg('');
                 }}
-                className="w-full h-12 pl-3.5 pr-11 bg-[#F6F8FC] border-2 border-[#E0E7F2] focus:border-[#1749B5] rounded-xl text-sm font-semibold outline-none transition-colors"
+                className="w-full h-12 pl-3.5 pr-11 bg-[#F6F8FC] border-2 border-[#E0E7F2] focus:ring-1 focus:ring-[#1749B5] rounded-xl text-sm font-semibold outline-none transition-colors"
                 autoFocus
               />
               <button

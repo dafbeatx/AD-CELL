@@ -148,7 +148,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
                 placeholder="Masukkan password saat ini..."
                 value={oldPassword}
                 onChange={e => setOldPassword(e.target.value)}
-                className="w-full h-11 px-3 bg-[#F6F8FC] border border-[#E0E7F2] focus:border-[#1749B5] rounded-xl text-xs font-semibold outline-none"
+                className="w-full h-11 px-3 bg-[#F6F8FC] border border-[#E0E7F2] focus:ring-1 focus:ring-[#1749B5] rounded-xl text-xs font-semibold outline-none"
               />
             </div>
 
@@ -161,7 +161,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
                 placeholder="Minimal 6 karakter..."
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                className="w-full h-11 px-3 bg-[#F6F8FC] border border-[#E0E7F2] focus:border-[#1749B5] rounded-xl text-xs font-semibold outline-none"
+                className="w-full h-11 px-3 bg-[#F6F8FC] border border-[#E0E7F2] focus:ring-1 focus:ring-[#1749B5] rounded-xl text-xs font-semibold outline-none"
               />
             </div>
 
@@ -174,7 +174,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
                 placeholder="Ketik ulang password baru..."
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
-                className="w-full h-11 px-3 bg-[#F6F8FC] border border-[#E0E7F2] focus:border-[#1749B5] rounded-xl text-xs font-semibold outline-none"
+                className="w-full h-11 px-3 bg-[#F6F8FC] border border-[#E0E7F2] focus:ring-1 focus:ring-[#1749B5] rounded-xl text-xs font-semibold outline-none"
               />
             </div>
 

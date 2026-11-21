@@ -194,7 +194,7 @@ export const KasbonScreen: React.FC<KasbonScreenProps> = () => {
                 placeholder="Contoh: Pak Budi"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-sm font-semibold outline-none focus:border-[#1749B5]"
+                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-sm font-semibold outline-none focus:ring-1 focus:ring-[#1749B5]"
               />
             </div>
             <div>
@@ -204,7 +204,7 @@ export const KasbonScreen: React.FC<KasbonScreenProps> = () => {
                 placeholder="Contoh: 50 untuk Rp50.000"
                 value={amountRibuan}
                 onChange={e => setAmountRibuan(e.target.value)}
-                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-base font-extrabold font-tabular outline-none focus:border-[#1749B5]"
+                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-base font-extrabold font-tabular outline-none focus:ring-1 focus:ring-[#1749B5]"
               />
               {amountRibuan && (
                 <div className="text-xs font-bold text-[#1749B5] mt-1">

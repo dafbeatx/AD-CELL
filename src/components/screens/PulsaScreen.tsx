@@ -64,7 +64,7 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = () => {
             placeholder="Nominal ribuan (contoh: 500)"
             value={inputIsi}
             onChange={e => setInputIsi(e.target.value)}
-            className="flex-1 p-2.5 border border-[#E0E7F2] rounded-lg text-sm font-bold font-tabular outline-none focus:border-[#1749B5]"
+            className="flex-1 p-2.5 border border-[#E0E7F2] rounded-lg text-sm font-bold font-tabular outline-none focus:ring-1 focus:ring-[#1749B5]"
           />
           <button
             onClick={handleAddIsi}

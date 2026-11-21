@@ -247,7 +247,7 @@ export const ProductScreen: React.FC<ProductScreenProps> = ({ category }) => {
                 placeholder="Contoh: Kabel Charger Fast"
                 value={newModel}
                 onChange={e => setNewModel(e.target.value)}
-                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-sm font-semibold focus:border-[#1749B5] outline-none"
+                className="w-full mt-1 p-2.5 border border-[#E0E7F2] rounded-lg text-sm font-semibold focus:ring-1 focus:ring-[#1749B5] outline-none"
               />
             </div>
             <div className="grid grid-cols-3 gap-2">
