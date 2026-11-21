@@ -6,20 +6,13 @@ import { calculateAdminFee } from '../../lib/tariffs';
 import { LedgerMath } from '../../lib/ledgerMath';
 import { KeypadModal } from '../KeypadModal';
 import { notifyTransaction } from '../../lib/telegram';
-import { ScanText } from 'lucide-react';
 
 interface TransactionScreenProps {
   channel: TxChannel;
   onBack?: () => void;
-  onOpenOcr?: () => void;
-  initialNominalRibuan?: number;
 }
 
-export const TransactionScreen: React.FC<TransactionScreenProps> = ({ 
-  channel, 
-  onOpenOcr,
-  initialNominalRibuan 
-}) => {
+export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel }) => {
   const [rows, setRows] = useState<TxRow[]>([]);
   const [aldeaActual, setAldeaActual] = useState<number>(0);
   const [selectedRow, setSelectedRow] = useState<TxRow | null>(null);
@@ -29,16 +22,6 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({
   useEffect(() => {
     loadRows();
   }, [channel]);
-
-  // Jika ada nominal dari hasil scan OCR, otomatis buka baris pertama yang kosong
-  useEffect(() => {
-    if (initialNominalRibuan && rows.length > 0) {
-      const firstEmpty = rows.find(r => !r.nominal || r.nominal === 0);
-      if (firstEmpty) {
-        handleUpdateRow(firstEmpty, firstEmpty.transaksi || 'transfer', initialNominalRibuan);
-      }
-    }
-  }, [initialNominalRibuan, rows]);
 
   async function loadRows() {
     const list = await db.transactions.where('channel').equals(channel).sortBy('baris');
@@ -151,20 +134,6 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({
           Ubah Fisik
         </button>
       </div>
-
-      {/* Tombol Pintasan Scan OCR */}
-      {onOpenOcr && (
-        <div className="px-3 pt-2.5">
-          <button
-            type="button"
-            onClick={onOpenOcr}
-            className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs btn-press"
-          >
-            <ScanText className="w-4 h-4" />
-            <span>Scan Bukti Transfer (OCR)</span>
-          </button>
-        </div>
-      )}
 
       {/* Table Header */}
       <div className="grid grid-cols-12 bg-white px-2 py-2.5 border-b border-[#E0E7F2] text-[11px] font-bold text-[#1749B5] text-center sticky top-14 z-10 shadow-2xs">

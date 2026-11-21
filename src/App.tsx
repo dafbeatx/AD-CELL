@@ -12,7 +12,6 @@ import { PulsaScreen } from './components/screens/PulsaScreen';
 import { QrisScreen } from './components/screens/QrisScreen';
 import { AdminScreen } from './components/screens/AdminScreen';
 import { LoginScreen } from './components/screens/LoginScreen';
-import { OcrModal } from './components/OcrModal';
 import { isUserAuthenticated, clearAuthSession, initializeAuth } from './lib/auth';
 import { syncTelegramConfigFromCloud, startTelegramPolling } from './lib/telegram';
 
@@ -20,11 +19,6 @@ export const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => isUserAuthenticated());
   const [currentScreen, setCurrentScreen] = useState<string>('dashboard');
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-
-  // State OCR Struk Modal
-  const [isOcrOpen, setIsOcrOpen] = useState<boolean>(false);
-  const [prefillTx, setPrefillTx] = useState<{ channel: string; nominalRibuan: number } | null>(null);
-  const [prefillExpense, setPrefillExpense] = useState<{ name: string; amountRibuan: number } | null>(null);
 
   useEffect(() => {
     initializeAuth();
@@ -38,7 +32,6 @@ export const App: React.FC = () => {
     setCurrentScreen('dashboard');
   };
 
-  // Jika belum login, tampilkan layar login aman
   if (!isAuthenticated) {
     return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
@@ -63,77 +56,18 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleApplyOcrTransaction = (data: {
-    channel: 'BCA' | 'Bank' | 'Dana' | 'Ovo' | 'QRIS' | 'Lainnya';
-    nominalRibuan: number;
-    nominalRupiah: number;
-    adminFee?: number;
-    refNumber?: string;
-  }) => {
-    let target = 'tx-bank';
-    if (data.channel === 'BCA') target = 'tx-bca';
-    else if (data.channel === 'Dana') target = 'tx-dana';
-    else if (data.channel === 'Ovo') target = 'tx-ovo';
-    else if (data.channel === 'QRIS') target = 'qris';
-
-    setPrefillTx({ channel: data.channel, nominalRibuan: data.nominalRibuan });
-    setCurrentScreen(target);
-  };
-
-  const handleApplyOcrExpense = (data: {
-    name: string;
-    amountRibuan: number;
-    amountRupiah: number;
-  }) => {
-    setPrefillExpense({ name: data.name, amountRibuan: data.amountRibuan });
-    setCurrentScreen('expense');
-  };
-
   const renderContent = () => {
     switch (currentScreen) {
       case 'dashboard':
-        return (
-          <DashboardScreen 
-            onNavigate={setCurrentScreen} 
-            onOpenOcr={() => setIsOcrOpen(true)} 
-          />
-        );
+        return <DashboardScreen onNavigate={setCurrentScreen} />;
       case 'tx-bank':
-        return (
-          <TransactionScreen 
-            channel="Bank" 
-            onBack={() => setCurrentScreen('dashboard')} 
-            onOpenOcr={() => setIsOcrOpen(true)}
-            initialNominalRibuan={prefillTx?.channel === 'Bank' || prefillTx?.channel === 'Lainnya' ? prefillTx.nominalRibuan : undefined}
-          />
-        );
+        return <TransactionScreen channel="Bank" onBack={() => setCurrentScreen('dashboard')} />;
       case 'tx-dana':
-        return (
-          <TransactionScreen 
-            channel="Dana" 
-            onBack={() => setCurrentScreen('dashboard')} 
-            onOpenOcr={() => setIsOcrOpen(true)}
-            initialNominalRibuan={prefillTx?.channel === 'Dana' ? prefillTx.nominalRibuan : undefined}
-          />
-        );
+        return <TransactionScreen channel="Dana" onBack={() => setCurrentScreen('dashboard')} />;
       case 'tx-ovo':
-        return (
-          <TransactionScreen 
-            channel="Ovo" 
-            onBack={() => setCurrentScreen('dashboard')} 
-            onOpenOcr={() => setIsOcrOpen(true)}
-            initialNominalRibuan={prefillTx?.channel === 'Ovo' ? prefillTx.nominalRibuan : undefined}
-          />
-        );
+        return <TransactionScreen channel="Ovo" onBack={() => setCurrentScreen('dashboard')} />;
       case 'tx-bca':
-        return (
-          <TransactionScreen 
-            channel="BCA" 
-            onBack={() => setCurrentScreen('dashboard')} 
-            onOpenOcr={() => setIsOcrOpen(true)}
-            initialNominalRibuan={prefillTx?.channel === 'BCA' ? prefillTx.nominalRibuan : undefined}
-          />
-        );
+        return <TransactionScreen channel="BCA" onBack={() => setCurrentScreen('dashboard')} />;
       case 'product-acc':
         return <ProductScreen category="Acc" onBack={() => setCurrentScreen('dashboard')} />;
       case 'product-atk':
@@ -145,13 +79,7 @@ export const App: React.FC = () => {
       case 'qris':
         return <QrisScreen onBack={() => setCurrentScreen('dashboard')} />;
       case 'expense':
-        return (
-          <ExpenseScreen 
-            onBack={() => setCurrentScreen('dashboard')} 
-            onOpenOcr={() => setIsOcrOpen(true)}
-            initialExpense={prefillExpense}
-          />
-        );
+        return <ExpenseScreen onBack={() => setCurrentScreen('dashboard')} />;
       case 'kasbon':
         return <KasbonScreen onBack={() => setCurrentScreen('dashboard')} />;
       case 'total':
@@ -159,12 +87,7 @@ export const App: React.FC = () => {
       case 'admin':
         return <AdminScreen onBack={() => setCurrentScreen('dashboard')} />;
       default:
-        return (
-          <DashboardScreen 
-            onNavigate={setCurrentScreen} 
-            onOpenOcr={() => setIsOcrOpen(true)} 
-          />
-        );
+        return <DashboardScreen onNavigate={setCurrentScreen} />;
     }
   };
 
@@ -172,33 +95,17 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F6F8FC] flex flex-col max-w-md mx-auto relative shadow-2xl overflow-x-hidden">
-      {/* Header */}
       <Header
         title={getScreenTitle()}
         onOpenDrawer={() => setIsDrawerOpen(true)}
         showBack={!isMainDashboard}
         onBack={() => setCurrentScreen('dashboard')}
-        onOpenOcr={() => setIsOcrOpen(true)}
       />
 
-      {/* Main Screen Body */}
       <main className="flex-1 overflow-y-auto">
         {renderContent()}
       </main>
 
-      {/* Modal Scanner OCR Struk */}
-      <OcrModal
-        isOpen={isOcrOpen}
-        onClose={() => {
-          setIsOcrOpen(false);
-          setPrefillTx(null);
-          setPrefillExpense(null);
-        }}
-        onApplyTransaction={handleApplyOcrTransaction}
-        onApplyExpense={handleApplyOcrExpense}
-      />
-
-      {/* Drawer */}
       <Drawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
@@ -206,7 +113,6 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      {/* Persistent Bottom Nav */}
       <BottomNav
         currentScreen={currentScreen}
         onNavigate={setCurrentScreen}

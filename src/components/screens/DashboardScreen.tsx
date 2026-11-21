@@ -9,18 +9,16 @@ import {
   Layers,
   ChevronRight,
   TrendingUp,
-  CreditCard,
-  Sparkles
+  CreditCard
 } from 'lucide-react';
 import { db } from '../../lib/db';
 import { Money } from '../../lib/money';
 
 interface DashboardScreenProps {
   onNavigate: (screen: string) => void;
-  onOpenOcr?: () => void;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, onOpenOcr }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
   const [stats, setStats] = useState({
     omset: 0,
     laba: 0,
@@ -89,28 +87,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate, on
           </div>
         </div>
       </div>
-
-      {/* Tombol Unggulan: Scan Struk OCR */}
-      {onOpenOcr && (
-        <div
-          onClick={onOpenOcr}
-          className="bg-gradient-to-r from-[#1749B5] to-[#09275F] text-white p-3.5 rounded-xl shadow-xs border border-blue-400/30 flex items-center justify-between cursor-pointer btn-press"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white border border-white/20">
-              <Sparkles className="w-5 h-5 text-amber-300" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-sm">Scan Struk & Bukti Transfer (OCR)</span>
-                <span className="text-[9px] font-extrabold bg-amber-400 text-[#09275F] px-1.5 py-0.5 rounded">BARU</span>
-              </div>
-              <p className="text-[11px] text-blue-100/90">Ambil foto struk, deteksi otomatis nominal & bank</p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-blue-200 shrink-0" />
-        </div>
-      )}
 
       {/* SECTION: PRODUK */}
       <div className="space-y-1.5">

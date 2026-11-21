@@ -2,19 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../../lib/db';
 import { Expense } from '../../types';
 import { Money } from '../../lib/money';
-import { Plus, Trash2, Receipt, ScanText } from 'lucide-react';
+import { Plus, Trash2, Receipt } from 'lucide-react';
 import { notifyExpense } from '../../lib/telegram';
 
 interface ExpenseScreenProps {
   onBack: () => void;
-  onOpenOcr?: () => void;
-  initialExpense?: { name: string; amountRibuan: number } | null;
 }
 
-export const ExpenseScreen: React.FC<ExpenseScreenProps> = ({ 
-  onOpenOcr, 
-  initialExpense 
-}) => {
+export const ExpenseScreen: React.FC<ExpenseScreenProps> = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [name, setName] = useState('');
@@ -25,14 +20,6 @@ export const ExpenseScreen: React.FC<ExpenseScreenProps> = ({
   useEffect(() => {
     loadExpenses();
   }, []);
-
-  useEffect(() => {
-    if (initialExpense) {
-      setName(initialExpense.name || 'Struk Belanja');
-      setAmountRibuan(initialExpense.amountRibuan ? initialExpense.amountRibuan.toString() : '');
-      setIsAddOpen(true);
-    }
-  }, [initialExpense]);
 
   async function loadExpenses() {
     const list = await db.expenses.orderBy('createdAt').reverse().toArray();
@@ -97,26 +84,13 @@ export const ExpenseScreen: React.FC<ExpenseScreenProps> = ({
           <h4 className="text-xs font-bold text-[#6F7C92] uppercase">
             Daftar Pengeluaran ({expenses.length})
           </h4>
-          <div className="flex items-center gap-1.5">
-            {onOpenOcr && (
-              <button
-                type="button"
-                onClick={onOpenOcr}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold rounded-lg shadow-xs btn-press"
-                title="Scan Struk Pengeluaran (OCR)"
-              >
-                <ScanText className="w-4 h-4" />
-                <span>Scan Struk</span>
-              </button>
-            )}
-            <button
-              onClick={() => setIsAddOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-[#1749B5] text-white text-xs font-bold rounded-lg shadow-xs btn-press"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Pengeluaran</span>
-            </button>
-          </div>
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-[#1749B5] text-white text-xs font-bold rounded-lg shadow-xs btn-press"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Pengeluaran</span>
+          </button>
         </div>
 
         {expenses.length === 0 ? (

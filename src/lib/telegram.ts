@@ -276,28 +276,6 @@ ${context ? `• <b>Konteks:</b> ${context}\n` : ''}• <b>Pesan:</b>
   sendTelegramMessage(message);
 }
 
-/** Notifikasi pemindaian struk / bukti transfer via OCR */
-export function notifyOcrReceipt(data: {
-  channel: string;
-  amountRupiah: number;
-  recipient?: string;
-  refNumber?: string;
-  txType?: string;
-}) {
-  const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const message = `
-🧾 <b>STRUK BUKTI DIPINDAI (OCR)</b>
-━━━━━━━━━━━━━━━━━
-• <b>Saluran:</b> <b>${data.channel.toUpperCase()}</b>
-• <b>Nominal:</b> <code>${Money.rupiah(data.amountRupiah)}</code>
-• <b>Jenis:</b> ${data.txType || 'Transfer'}
-${data.recipient ? `• <b>Penerima:</b> ${data.recipient}\n` : ''}${data.refNumber ? `• <b>No. Ref:</b> <code>${data.refNumber}</code>\n` : ''}• <b>Waktu Scan:</b> ${time} WIB
-━━━━━━━━━━━━━━━━━
-🏪 <i>Aldea POS OCR Reader</i>`.trim();
-
-  sendTelegramMessage(message);
-}
-
 let isPollingActive = false;
 let browserLastUpdateId = 0;
 
