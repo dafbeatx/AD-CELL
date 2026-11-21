@@ -13,6 +13,7 @@ import { QrisScreen } from './components/screens/QrisScreen';
 import { AdminScreen } from './components/screens/AdminScreen';
 import { LoginScreen } from './components/screens/LoginScreen';
 import { isUserAuthenticated, clearAuthSession, initializeAuth } from './lib/auth';
+import { syncTelegramConfigFromCloud } from './lib/telegram';
 
 export const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => isUserAuthenticated());
@@ -21,6 +22,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     initializeAuth();
+    syncTelegramConfigFromCloud();
   }, []);
 
   const handleLogout = () => {

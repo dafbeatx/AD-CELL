@@ -1,16 +1,95 @@
 import { Money } from './money';
+import { supabase, isSupabaseConfigured } from './supabase';
 
-const botToken = (import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '').trim();
-const chatId = (import.meta.env.VITE_TELEGRAM_CHAT_ID || '').trim();
+const STORAGE_KEY_TOKEN = 'aldea_telegram_token';
+const STORAGE_KEY_CHAT_ID = 'aldea_telegram_chat_id';
 
-export const isTelegramConfigured = Boolean(botToken && chatId);
+/**
+ * Mengambil konfigurasi Telegram saat ini.
+ * Memprioritaskan nilai dari localStorage (yang diset via menu Admin),
+ * kemudian fallback ke file environment .env.local.
+ */
+export function getTelegramConfig() {
+  const localToken = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_TOKEN) : null;
+  const localChatId = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_CHAT_ID) : null;
+
+  const botToken = (localToken || import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '').trim();
+  const chatId = (localChatId || import.meta.env.VITE_TELEGRAM_CHAT_ID || '').trim();
+
+  return {
+    botToken,
+    chatId,
+    isConfigured: Boolean(botToken && chatId)
+  };
+}
+
+export function isTelegramConfigured(): boolean {
+  return getTelegramConfig().isConfigured;
+}
+
+/**
+ * Menyimpan konfigurasi Telegram ke localStorage dan ke cloud database Supabase
+ */
+export async function saveTelegramConfig(token: string, chatId: string): Promise<void> {
+  const cleanToken = token.trim();
+  const cleanChatId = chatId.trim();
+
+  if (typeof window !== 'undefined') {
+    if (cleanToken) {
+      localStorage.setItem(STORAGE_KEY_TOKEN, cleanToken);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+    }
+    if (cleanChatId) {
+      localStorage.setItem(STORAGE_KEY_CHAT_ID, cleanChatId);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_CHAT_ID);
+    }
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('app_settings').upsert([
+        { key: 'telegram_bot_token', value: cleanToken, updated_at: new Date().toISOString() },
+        { key: 'telegram_chat_id', value: cleanChatId, updated_at: new Date().toISOString() }
+      ]);
+    } catch (e) {
+      console.warn('Gagal sync telegram config ke Supabase:', e);
+    }
+  }
+}
+
+/** Inisialisasi sync setting dari Supabase saat aplikasi terbuka */
+export async function syncTelegramConfigFromCloud(): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) return;
+  try {
+    const { data } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['telegram_bot_token', 'telegram_chat_id']);
+
+    if (data && data.length > 0) {
+      for (const item of data) {
+        if (item.key === 'telegram_bot_token' && item.value && !localStorage.getItem(STORAGE_KEY_TOKEN)) {
+          localStorage.setItem(STORAGE_KEY_TOKEN, item.value);
+        }
+        if (item.key === 'telegram_chat_id' && item.value && !localStorage.getItem(STORAGE_KEY_CHAT_ID)) {
+          localStorage.setItem(STORAGE_KEY_CHAT_ID, item.value);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal memuat setting telegram dari cloud:', err);
+  }
+}
 
 /**
  * Kirim pesan teks terformat ke Telegram Bot via Telegram Bot API.
  * Asynchronous dan non-blocking agar tidak mengganggu transaksi kasir jika koneksi lambat.
  */
 export async function sendTelegramMessage(text: string): Promise<boolean> {
-  if (!isTelegramConfigured) return false;
+  const { botToken, chatId, isConfigured } = getTelegramConfig();
+  if (!isConfigured) return false;
 
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
   try {
@@ -27,6 +106,49 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
   } catch (err) {
     console.warn('Gagal mengirim notifikasi ke Telegram:', err);
     return false;
+  }
+}
+
+/**
+ * Tes koneksi Telegram dengan laporan hasil pengiriman lengkap
+ */
+export async function testTelegramConnection(customToken?: string, customChatId?: string): Promise<{ success: boolean; message: string }> {
+  const cfg = getTelegramConfig();
+  const token = (customToken ?? cfg.botToken).trim();
+  const cid = (customChatId ?? cfg.chatId).trim();
+
+  if (!token || !cid) {
+    return { success: false, message: 'Bot Token dan Chat ID wajib diisi terlebih dahulu.' };
+  }
+
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  try {
+    const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: cid,
+        text: `🚀 <b>Tes Notifikasi Aldea POS</b>\n━━━━━━━━━━━━━━━━━\n✅ <b>Status:</b> Bot Telegram Berhasil Terhubung!\n🕒 <b>Waktu:</b> ${time} WIB\n\nSetiap transaksi, kasbon, dan tutup buku harian akan otomatis dikirimkan ke sini.`,
+        parse_mode: 'HTML'
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      return { success: true, message: 'Pesan tes berhasil dikirim! Silakan periksa chat Telegram Anda.' };
+    } else {
+      const errDesc = data.description || 'Gagal mengirim pesan';
+      let tip = '';
+      if (errDesc.includes('chat not found') || errDesc.includes('Forbidden')) {
+        tip = ' (Pastikan Anda sudah membuka bot di Telegram dan menekan tombol START)';
+      } else if (errDesc.includes('Unauthorized')) {
+        tip = ' (Token Bot tidak valid, periksa kembali token dari @BotFather)';
+      }
+      return { success: false, message: `Telegram Error: ${errDesc}${tip}` };
+    }
+  } catch (err: any) {
+    return { success: false, message: `Koneksi gagal: ${err?.message || 'Periksa jaringan internet Anda.'}` };
   }
 }
 
