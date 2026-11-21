@@ -275,3 +275,133 @@ ${context ? `• <b>Konteks:</b> ${context}\n` : ''}• <b>Pesan:</b>
 
   sendTelegramMessage(message);
 }
+
+/** Notifikasi pemindaian struk / bukti transfer via OCR */
+export function notifyOcrReceipt(data: {
+  channel: string;
+  amountRupiah: number;
+  recipient?: string;
+  refNumber?: string;
+  txType?: string;
+}) {
+  const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const message = `
+🧾 <b>STRUK BUKTI DIPINDAI (OCR)</b>
+━━━━━━━━━━━━━━━━━
+• <b>Saluran:</b> <b>${data.channel.toUpperCase()}</b>
+• <b>Nominal:</b> <code>${Money.rupiah(data.amountRupiah)}</code>
+• <b>Jenis:</b> ${data.txType || 'Transfer'}
+${data.recipient ? `• <b>Penerima:</b> ${data.recipient}\n` : ''}${data.refNumber ? `• <b>No. Ref:</b> <code>${data.refNumber}</code>\n` : ''}• <b>Waktu Scan:</b> ${time} WIB
+━━━━━━━━━━━━━━━━━
+🏪 <i>Aldea POS OCR Reader</i>`.trim();
+
+  sendTelegramMessage(message);
+}
+
+let isPollingActive = false;
+let browserLastUpdateId = 0;
+
+/**
+ * Polling Telegram getUpdates dari browser secara realtime
+ * Menangani perintah /start, /status, /help otomatis
+ */
+export function startTelegramPolling() {
+  if (isPollingActive || typeof window === 'undefined') return;
+  isPollingActive = true;
+
+  const poll = async () => {
+    const { botToken, isConfigured } = getTelegramConfig();
+    if (!isConfigured) {
+      setTimeout(poll, 8000);
+      return;
+    }
+
+    try {
+      const url = `https://api.telegram.org/bot${botToken}/getUpdates?offset=${browserLastUpdateId ? browserLastUpdateId + 1 : 0}&timeout=10`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.ok && Array.isArray(data.result)) {
+        for (const update of data.result) {
+          browserLastUpdateId = update.update_id;
+          if (update.message && update.message.text) {
+            await handleIncomingCommand(update.message);
+          }
+        }
+      }
+    } catch {
+      // Abaikan error jaringan saat polling
+    }
+
+    setTimeout(poll, 3000);
+  };
+
+  setTimeout(poll, 1500);
+}
+
+async function handleIncomingCommand(msg: any) {
+  const chatId = msg.chat?.id;
+  const text = (msg.text || '').trim();
+  const senderName = msg.from?.first_name || 'Kasir';
+  const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  let reply = '';
+  if (text.startsWith('/start')) {
+    reply = `
+👋 Halo <b>${senderName}</b>!
+🤖 <b>Bot Aldea POS Aktif & Siap Digunakan!</b>
+━━━━━━━━━━━━━━━━━
+✅ <b>Status:</b> Online & Terhubung
+🕒 <b>Waktu:</b> ${time} WIB
+📅 <b>Tanggal:</b> ${dateStr}
+
+Sistem kasir siap digunakan. Notifikasi transaksi, penjualan, dan closing harian akan otomatis dikirim ke sini.
+
+📌 <b>Perintah yang tersedia:</b>
+• /start - Cek status bot kasir
+• /status - Cek status kasir
+• /help - Panduan penggunaan bot
+━━━━━━━━━━━━━━━━━
+🏪 <i>AD-CELL POS System</i>`.trim();
+  } else if (text.startsWith('/status')) {
+    reply = `
+📊 <b>STATUS SISTEM ALDEA POS</b>
+━━━━━━━━━━━━━━━━━
+• <b>Bot Telegram:</b> 🟢 Aktif & Terhubung
+• <b>Chat ID Anda:</b> <code>${chatId}</code>
+• <b>Tanggal:</b> ${dateStr}
+• <b>Waktu:</b> ${time} WIB
+• <b>Mode Kasir:</b> Siap Transaksi
+━━━━━━━━━━━━━━━━━
+🏪 <i>AD-CELL POS System</i>`.trim();
+  } else if (text.startsWith('/help')) {
+    reply = `
+ℹ️ <b>PANDUAN BOT ALDEA POS</b>
+━━━━━━━━━━━━━━━━━
+Bot ini terhubung dengan aplikasi kasir AD-CELL:
+1. <b>Notifikasi Transaksi:</b> Otomatis dikirim saat kasir menyimpan transaksi Bank, Dana, OVO, BCA, atau QRIS.
+2. <b>Penjualan Produk:</b> Notifikasi langsung saat produk Acc, ATK, atau Voucher terjual.
+3. <b>Buku Kasbon:</b> Laporan saat ada hutang baru atau pelunasan kasbon.
+4. <b>Closing Harian:</b> Rekap omset dan laba bersih otomatis dikirim saat tutup kasir.
+━━━━━━━━━━━━━━━━━
+🏪 <i>AD-CELL POS System</i>`.trim();
+  }
+
+  if (reply && chatId) {
+    const { botToken } = getTelegramConfig();
+    try {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: reply,
+          parse_mode: 'HTML'
+        })
+      });
+    } catch {
+      // ignore
+    }
+  }
+}

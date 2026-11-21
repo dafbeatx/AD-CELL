@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Cloud, CloudOff } from 'lucide-react';
+import { Menu, Cloud, CloudOff, ScanText } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 interface HeaderProps {
@@ -7,6 +7,7 @@ interface HeaderProps {
   onOpenDrawer: () => void;
   showBack?: boolean;
   onBack?: () => void;
+  onOpenOcr?: () => void;
   rightAction?: React.ReactNode;
 }
 
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDrawer,
   showBack = false,
   onBack,
+  onOpenOcr,
   rightAction
 }) => {
   return (
@@ -38,12 +40,25 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
         <img src="/favicon.webp" alt="Aldea Logo" className="w-6 h-6 object-contain rounded-md" />
-        <h1 className="text-lg font-bold tracking-tight truncate max-w-[200px]">
+        <h1 className="text-lg font-bold tracking-tight truncate max-w-[180px]">
           {title}
         </h1>
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Tombol Cepat Scan Struk OCR */}
+        {onOpenOcr && (
+          <button
+            type="button"
+            onClick={onOpenOcr}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500 hover:bg-sky-400 text-white shadow-xs btn-press"
+            title="Scan Struk / Bukti Transfer (OCR)"
+          >
+            <ScanText className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Scan Struk</span>
+          </button>
+        )}
+
         {/* Sync Status Pill */}
         <div 
           className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium bg-black/25 text-white/90 border border-white/10"
