@@ -1,36 +1,94 @@
 import { db } from './db';
+import { supabase } from './supabase';
 
-const DEFAULT_PASSWORD = 'Aldea#2026';
+export const DEFAULT_PASSWORD = 'Aldea#2026';
 const SESSION_KEY = 'aldea_auth_session';
+const LOCAL_STORAGE_HASH_KEY = 'aldea_admin_password_hash';
 
 /** Helper hashing SHA-256 menggunakan native Web Crypto API */
-async function sha256(message: string): Promise<string> {
+export async function sha256(message: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Inisialisasi password default jika belum ada di database */
-export async function initializeAuth(): Promise<void> {
-  const existingHash = await db.meta.get('admin_password_hash');
-  if (!existingHash) {
-    const defaultHash = await sha256(DEFAULT_PASSWORD);
-    await db.meta.put({ key: 'admin_password_hash', value: defaultHash });
+/** Ambil hash tersimpan dari Supabase (SQL), localStorage, atau IndexedDB */
+export async function getStoredPasswordHash(): Promise<string> {
+  const defaultHash = await sha256(DEFAULT_PASSWORD);
+
+  // 1. Coba ambil dari Supabase (Cloud SQL) jika online
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'admin_password_hash')
+        .maybeSingle();
+
+      if (!error && data && data.value) {
+        // Simpan salinan ke localStorage & IndexedDB agar sinkron
+        localStorage.setItem(LOCAL_STORAGE_HASH_KEY, data.value);
+        db.meta.put({ key: 'admin_password_hash', value: data.value }).catch(() => {});
+        return data.value;
+      }
+    } catch (_) {
+      // Offline fallback
+    }
   }
+
+  // 2. Ambil dari localStorage (Sangat cepat & persisten)
+  const localHash = localStorage.getItem(LOCAL_STORAGE_HASH_KEY);
+  if (localHash) {
+    return localHash;
+  }
+
+  // 3. Ambil dari IndexedDB
+  try {
+    const dbItem = await db.meta.get('admin_password_hash');
+    if (dbItem && dbItem.value) {
+      localStorage.setItem(LOCAL_STORAGE_HASH_KEY, dbItem.value);
+      return dbItem.value;
+    }
+  } catch (_) {}
+
+  // 4. Jika benar-benar belum pernah ada password, set default
+  localStorage.setItem(LOCAL_STORAGE_HASH_KEY, defaultHash);
+  try {
+    await db.meta.put({ key: 'admin_password_hash', value: defaultHash });
+  } catch (_) {}
+
+  return defaultHash;
+}
+
+/** Inisialisasi awal */
+export async function initializeAuth(): Promise<void> {
+  await getStoredPasswordHash();
+}
+
+/** Cek apakah password saat ini masih menggunakan default */
+export async function isDefaultPassword(): Promise<boolean> {
+  const currentHash = await getStoredPasswordHash();
+  const defaultHash = await sha256(DEFAULT_PASSWORD);
+  return currentHash === defaultHash;
 }
 
 /** Verifikasi password input terhadap hash tersimpan */
 export async function verifyPassword(password: string): Promise<boolean> {
-  await initializeAuth();
-  const stored = await db.meta.get('admin_password_hash');
-  if (!stored || !stored.value) return false;
-
   const inputHash = await sha256(password);
-  return inputHash === stored.value;
+  const storedHash = await getStoredPasswordHash();
+  const defaultHash = await sha256(DEFAULT_PASSWORD);
+
+  // Proteksi mutlak: Jika password sudah pernah diganti (storedHash != defaultHash),
+  // maka input default password DIJAMIN DITOLAK!
+  if (storedHash !== defaultHash && inputHash === defaultHash) {
+    return false;
+  }
+
+  return inputHash === storedHash;
 }
 
-/** Ubah password admin */
+/** Ubah password admin (simpan ke Supabase SQL + localStorage + IndexedDB) */
 export async function changePassword(
   oldPass: string,
   newPass: string
@@ -45,9 +103,36 @@ export async function changePassword(
   }
 
   const newHash = await sha256(newPass);
-  await db.meta.put({ key: 'admin_password_hash', value: newHash });
 
-  return { success: true, message: 'Password berhasil diubah!' };
+  // 1. Simpan ke localStorage (instan)
+  localStorage.setItem(LOCAL_STORAGE_HASH_KEY, newHash);
+
+  // 2. Simpan ke IndexedDB
+  try {
+    await db.meta.put({ key: 'admin_password_hash', value: newHash });
+  } catch (_) {}
+
+  // 3. Simpan ke Supabase SQL (agar sinkron ke semua perangkat HP/Laptop)
+  let cloudSaved = false;
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert({
+          key: 'admin_password_hash',
+          value: newHash,
+          updated_at: new Date().toISOString()
+        });
+      if (!error) cloudSaved = true;
+    } catch (_) {}
+  }
+
+  return { 
+    success: true, 
+    message: cloudSaved 
+      ? 'Password berhasil diubah dan disinkronkan ke Cloud Supabase!' 
+      : 'Password berhasil diubah di perangkat ini!' 
+  };
 }
 
 /** Login session management */
@@ -72,5 +157,3 @@ export function isUserAuthenticated(): boolean {
     return false;
   }
 }
-
-export const DEFAULT_PASS_HINT = DEFAULT_PASSWORD;

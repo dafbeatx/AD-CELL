@@ -83,6 +83,13 @@ create table if not exists public.daily_closings (
     created_at timestamptz default now()
 );
 
+-- 8. TABEL PENGATURAN & KEAMANAN SISTEM (PASSWORD ADMIN & SETTINGS)
+create table if not exists public.app_settings (
+    key text primary key,
+    value text not null,
+    updated_at timestamptz default now()
+);
+
 -- Row Level Security (RLS)
 alter table public.products enable row level security;
 alter table public.product_sales enable row level security;
@@ -90,11 +97,13 @@ alter table public.financial_transactions enable row level security;
 alter table public.expenses enable row level security;
 alter table public.kasbon enable row level security;
 alter table public.daily_closings enable row level security;
+alter table public.app_settings enable row level security;
 
--- Izinkan akses publik via Anon Key (Cocok untuk toko lokal / POS pribadi)
+-- Izinkan akses via Anon Key
 create policy "Allow all actions for anon on products" on public.products for all using (true) with check (true);
 create policy "Allow all actions for anon on product_sales" on public.product_sales for all using (true) with check (true);
 create policy "Allow all actions for anon on financial_transactions" on public.financial_transactions for all using (true) with check (true);
 create policy "Allow all actions for anon on expenses" on public.expenses for all using (true) with check (true);
 create policy "Allow all actions for anon on kasbon" on public.kasbon for all using (true) with check (true);
 create policy "Allow all actions for anon on daily_closings" on public.daily_closings for all using (true) with check (true);
+create policy "Allow all actions for anon on app_settings" on public.app_settings for all using (true) with check (true);

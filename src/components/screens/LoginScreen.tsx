@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Lock, Eye, EyeOff, KeyRound, AlertCircle } from 'lucide-react';
-import { verifyPassword, setAuthSession, DEFAULT_PASS_HINT } from '../../lib/auth';
+import React, { useState, useEffect } from 'react';
+import { Lock, Eye, EyeOff, KeyRound, AlertCircle, ShieldAlert } from 'lucide-react';
+import { verifyPassword, setAuthSession, isDefaultPassword, DEFAULT_PASSWORD } from '../../lib/auth';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -11,6 +11,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isDefault, setIsDefault] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function checkStatus() {
+      const def = await isDefaultPassword();
+      setIsDefault(def);
+    }
+    checkStatus();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +37,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setAuthSession();
         onLoginSuccess();
       } else {
-        setErrorMsg('Password salah! Periksa kembali huruf besar/kecil.');
+        if (!isDefault && password === DEFAULT_PASSWORD) {
+          setErrorMsg('Password default sudah tidak berlaku karena telah diubah oleh Admin!');
+        } else {
+          setErrorMsg('Password salah! Periksa kembali huruf besar/kecil.');
+        }
       }
     } catch (err) {
       setErrorMsg('Terjadi kesalahan saat verifikasi: ' + err);
@@ -99,23 +112,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </button>
         </form>
 
-        {/* Info Default Password */}
-        <div className="p-3 bg-[#EBF1FD] rounded-xl border border-[#1749B5]/20 text-[11px] text-[#09275F] space-y-1">
-          <div className="font-bold">🔑 Password Default Awal:</div>
-          <div className="flex items-center justify-between font-mono bg-white px-2 py-1.5 rounded border border-[#E0E7F2] text-xs font-black text-[#1749B5]">
-            <span>{DEFAULT_PASS_HINT}</span>
-            <button
-              type="button"
-              onClick={() => setPassword(DEFAULT_PASS_HINT)}
-              className="text-[10px] text-blue-600 font-sans font-bold hover:underline"
-            >
-              Gunakan
-            </button>
+        {/* Status Password Indicator */}
+        {isDefault ? (
+          <div className="p-3 bg-[#EBF1FD] rounded-xl border border-[#1749B5]/20 text-[11px] text-[#09275F] space-y-1">
+            <div className="font-bold">🔑 Password Default Awal:</div>
+            <div className="flex items-center justify-between font-mono bg-white px-2 py-1.5 rounded border border-[#E0E7F2] text-xs font-black text-[#1749B5]">
+              <span>{DEFAULT_PASSWORD}</span>
+              <button
+                type="button"
+                onClick={() => setPassword(DEFAULT_PASSWORD)}
+                className="text-[10px] text-blue-600 font-sans font-bold hover:underline"
+              >
+                Gunakan
+              </button>
+            </div>
+            <p className="text-[10px] text-[#6F7C92] pt-0.5">
+              Admin dapat mengganti password ini kapan saja melalui menu Panel Admin.
+            </p>
           </div>
-          <p className="text-[10px] text-[#6F7C92] pt-0.5">
-            Admin dapat mengganti password ini kapan saja melalui menu Panel Admin.
-          </p>
-        </div>
+        ) : (
+          <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-center gap-2 font-medium">
+            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Password kasir telah diubah oleh Admin. Password default sudah tidak berlaku.</span>
+          </div>
+        )}
       </div>
     </div>
   );
