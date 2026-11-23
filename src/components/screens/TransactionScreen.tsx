@@ -25,6 +25,14 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
 
   async function loadRows() {
     const list = await db.transactions.where('channel').equals(channel).sortBy('baris');
+    // Transaksi 'isi' (isi saldo) dan 'bagi' (bagi saldo) tidak memakai laba
+    for (const r of list) {
+      const isLabaEligible = r.transaksi === 'transfer' || r.transaksi === 'tarik';
+      if (!isLabaEligible && r.laba > 0) {
+        await db.transactions.update(r.id, { laba: 0 });
+        r.laba = 0;
+      }
+    }
     setRows(list);
 
     const aldeaMeta = await db.meta.get(`aldea_saldo_${channel.toLowerCase()}`);
@@ -40,7 +48,9 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
 
   const rowsWithComputedSaldo = rows.map((r) => {
     const nom = r.nominal || 0;
-    const laba = r.laba || 0;
+    // Laba fee hanya dihitung untuk transaksi transfer dan tarik tunai
+    const isLabaEligible = r.transaksi === 'transfer' || r.transaksi === 'tarik';
+    const laba = isLabaEligible ? (r.laba || 0) : 0;
 
     if (r.transaksi === 'isi') runningSaldo += nom;
     if (r.transaksi === 'tarik') {
@@ -58,7 +68,7 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
     }
     totalLaba += laba;
 
-    return { ...r, calculatedSaldo: runningSaldo };
+    return { ...r, laba, calculatedSaldo: runningSaldo };
   });
 
   const finalSaldo = runningSaldo;
@@ -66,7 +76,9 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
   const selisih = aldeaActual > 0 ? aldeaActual - finalSaldo : 0;
 
   const handleUpdateRow = async (row: TxRow, type: TxType | '', nominalRibuan: number) => {
-    const laba = type ? calculateAdminFee(channel, nominalRibuan) : 0;
+    // Isi saldo, bagi saldo, dan setor tidak dikenakan laba (hanya transfer dan tarik tunai)
+    const isLabaEligible = type === 'transfer' || type === 'tarik';
+    const laba = isLabaEligible ? calculateAdminFee(channel, nominalRibuan) : 0;
     await db.transactions.update(row.id, {
       transaksi: type,
       nominal: nominalRibuan,
@@ -209,8 +221,10 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
                   <button
                     key={opt.val}
                     onClick={() => {
+                      const isLabaEligible = opt.val === 'transfer' || opt.val === 'tarik';
+                      const nextLaba = isLabaEligible ? calculateAdminFee(channel, selectedRow.nominal) : 0;
                       handleUpdateRow(selectedRow, opt.val, selectedRow.nominal);
-                      setSelectedRow(prev => prev ? { ...prev, transaksi: opt.val } : null);
+                      setSelectedRow(prev => prev ? { ...prev, transaksi: opt.val, laba: nextLaba } : null);
                     }}
                     className={`py-2.5 px-3 rounded-lg text-xs font-bold border btn-press ${
                       selectedRow.transaksi === opt.val
@@ -256,8 +270,10 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
           if (keypadTarget === 'aldea') {
             handleSaveAldea(val);
           } else if (selectedRow) {
+            const isLabaEligible = selectedRow.transaksi === 'transfer' || selectedRow.transaksi === 'tarik';
+            const nextLaba = isLabaEligible ? calculateAdminFee(channel, val) : 0;
             handleUpdateRow(selectedRow, selectedRow.transaksi, val);
-            setSelectedRow(prev => prev ? { ...prev, nominal: val } : null);
+            setSelectedRow(prev => prev ? { ...prev, nominal: val, laba: nextLaba } : null);
           }
         }}
       />

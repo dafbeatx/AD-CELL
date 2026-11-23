@@ -36,9 +36,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       const productOmset = products.reduce((sum, p) => sum + p.omset, 0);
       const productLaba = products.reduce((sum, p) => sum + p.laba, 0);
 
-      // Hitung transaksi
+      // Hitung transaksi (hanya transfer dan tarik yang menghasilkan laba fee)
       const txs = await db.transactions.toArray();
-      const txLaba = txs.reduce((sum, t) => sum + (t.laba || 0), 0);
+      const txLaba = txs.reduce((sum, t) => {
+        const isLabaEligible = t.transaksi === 'transfer' || t.transaksi === 'tarik';
+        return sum + (isLabaEligible ? (t.laba || 0) : 0);
+      }, 0);
 
       setStats({
         omset: productOmset,

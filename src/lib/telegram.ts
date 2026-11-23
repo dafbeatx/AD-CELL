@@ -167,7 +167,7 @@ export function notifyTransaction(data: {
 ━━━━━━━━━━━━━━━━━
 • <b>Jenis:</b> ${data.type.toUpperCase()} (Baris #${data.baris})
 • <b>Nominal:</b> <code>${Money.ribuan(data.nominal)}</code>
-• <b>Laba Fee:</b> <code>+${Money.ribuan(data.laba)}</code>
+• <b>Laba Fee:</b> <code>${data.laba > 0 ? `+${Money.ribuan(data.laba)}` : '-'}</code>
 • <b>Sisa Saldo:</b> <code>${Money.ribuan(data.saldo)}</code>
 • <b>Waktu:</b> ${time} WIB
 ━━━━━━━━━━━━━━━━━

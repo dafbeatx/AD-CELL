@@ -36,7 +36,10 @@ export const TotalScreen: React.FC<TotalScreenProps> = () => {
       if (t.transaksi === 'transfer') transfer += t.nominal || 0;
       if (t.transaksi === 'tarik') tarik += t.nominal || 0;
       if (t.transaksi === 'setor') setorBca += t.nominal || 0;
-      labaTx += t.laba || 0;
+      // Isi saldo, bagi saldo, dan setor tidak menghasilkan laba fee
+      if (t.transaksi === 'transfer' || t.transaksi === 'tarik') {
+        labaTx += t.laba || 0;
+      }
     }
     const txOmset = transfer + labaTx - tarik - setorBca;
 
