@@ -25,8 +25,23 @@ export interface ProductSale {
   waktu: number;
 }
 
-export type TxChannel = 'Bank' | 'Dana' | 'Ovo' | 'BCA';
+export type TariffProfile = 'Bank' | 'Dana';
+export type TxChannel = string;
 export type TxType = 'bagi' | 'isi' | 'transfer' | 'tarik' | 'setor';
+
+export interface TxChannelConfig {
+  id: string;
+  name: string;
+  subtitle: string;
+  kind: 'ledger' | 'pulsa' | 'qris';
+  tariffProfile: TariffProfile;
+  isDefault: boolean;
+}
+
+export interface TariffConfig {
+  bank: Tariff[];
+  dana: Tariff[];
+}
 
 export interface TxRow {
   id: string;

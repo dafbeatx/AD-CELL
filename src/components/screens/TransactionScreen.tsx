@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../lib/db';
-import { TxRow, TxChannel, TxType } from '../../types';
+import { ensureChannelRows } from '../../lib/channels';
+import { TxRow, TxChannelConfig, TxType } from '../../types';
 import { Money } from '../../lib/money';
 import { calculateAdminFee } from '../../lib/tariffs';
 import { LedgerMath } from '../../lib/ledgerMath';
@@ -8,11 +9,12 @@ import { KeypadModal } from '../KeypadModal';
 import { notifyTransaction } from '../../lib/telegram';
 
 interface TransactionScreenProps {
-  channel: TxChannel;
+  channelConfig: TxChannelConfig;
   onBack?: () => void;
 }
 
-export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel }) => {
+export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channelConfig }) => {
+  const { id: channelId, name: channelName, tariffProfile } = channelConfig;
   const [rows, setRows] = useState<TxRow[]>([]);
   const [aldeaActual, setAldeaActual] = useState<number>(0);
   const [selectedRow, setSelectedRow] = useState<TxRow | null>(null);
@@ -21,10 +23,11 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
 
   useEffect(() => {
     loadRows();
-  }, [channel]);
+  }, [channelId]);
 
   async function loadRows() {
-    const list = await db.transactions.where('channel').equals(channel).sortBy('baris');
+    await ensureChannelRows(channelId);
+    const list = await db.transactions.where('channel').equals(channelId).sortBy('baris');
     // Transaksi 'isi' (isi saldo) dan 'bagi' (bagi saldo) tidak memakai laba
     for (const r of list) {
       const isLabaEligible = r.transaksi === 'transfer' || r.transaksi === 'tarik';
@@ -35,7 +38,7 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
     }
     setRows(list);
 
-    const aldeaMeta = await db.meta.get(`aldea_saldo_${channel.toLowerCase()}`);
+    const aldeaMeta = await db.meta.get(`aldea_saldo_${channelId.toLowerCase()}`);
     setAldeaActual(aldeaMeta?.value || 0);
   }
 
@@ -78,7 +81,7 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
   const handleUpdateRow = async (row: TxRow, type: TxType | '', nominalRibuan: number) => {
     // Isi saldo, bagi saldo, dan setor tidak dikenakan laba (hanya transfer dan tarik tunai)
     const isLabaEligible = type === 'transfer' || type === 'tarik';
-    const laba = isLabaEligible ? calculateAdminFee(channel, nominalRibuan) : 0;
+    const laba = isLabaEligible ? calculateAdminFee(tariffProfile, nominalRibuan) : 0;
     await db.transactions.update(row.id, {
       transaksi: type,
       nominal: nominalRibuan,
@@ -88,7 +91,7 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
 
     if (type && nominalRibuan > 0) {
       notifyTransaction({
-        channel,
+        channel: channelName,
         type,
         nominal: nominalRibuan,
         laba,
@@ -100,15 +103,14 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
 
   const handleSaveAldea = async (valRibuan: number) => {
     setAldeaActual(valRibuan);
-    await db.meta.put({ key: `aldea_saldo_${channel.toLowerCase()}`, value: valRibuan });
+    await db.meta.put({ key: `aldea_saldo_${channelId.toLowerCase()}`, value: valRibuan });
   };
 
   const txOptions: { val: TxType; label: string }[] = [
     { val: 'bagi', label: 'Bagi Saldo' },
     { val: 'isi', label: 'Isi Saldo' },
     { val: 'transfer', label: 'Transfer' },
-    { val: 'tarik', label: 'Tarik Tunai' },
-    ...(channel === 'BCA' ? [{ val: 'setor' as TxType, label: 'Setor' }] : [])
+    { val: 'tarik', label: 'Tarik Tunai' }
   ];
 
   return (
@@ -135,7 +137,12 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
 
       {/* Saldo Aktual Fisik (Aldea) Bar */}
       <div className="bg-[#09275F] text-white px-3 py-2 flex items-center justify-between text-xs font-semibold">
-        <span>Aldea Fisik: {Money.ribuan(aldeaActual)}</span>
+        <div className="flex items-center gap-2">
+          <span>Aldea Fisik: {Money.ribuan(aldeaActual)}</span>
+          <span className="px-1.5 py-0.5 rounded bg-white/15 text-[10px] font-bold text-blue-100">
+            Admin: {tariffProfile}
+          </span>
+        </div>
         <button
           onClick={() => {
             setKeypadTarget('aldea');
@@ -195,12 +202,12 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60">
           <div className="w-full max-w-md bg-white rounded-t-2xl p-4 flex flex-col gap-3 shadow-2xl animate-in slide-in-from-bottom">
             <div className="flex items-center justify-between pb-2 border-b border-[#E0E7F2]">
-              <h3 className="font-bold text-[#182338]">Baris #{selectedRow.baris} - {channel}</h3>
+              <h3 className="font-bold text-[#182338]">Baris #{selectedRow.baris} - {channelName}</h3>
               <button onClick={() => setSelectedRow(null)} className="text-[#6F7C92] font-bold text-lg px-2">✕</button>
             </div>
 
             {/* Input Nominal Button */}
-            <div 
+            <div
               onClick={() => {
                 setKeypadTarget('nominal');
                 setIsKeypadOpen(true);
@@ -222,7 +229,7 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
                     key={opt.val}
                     onClick={() => {
                       const isLabaEligible = opt.val === 'transfer' || opt.val === 'tarik';
-                      const nextLaba = isLabaEligible ? calculateAdminFee(channel, selectedRow.nominal) : 0;
+                      const nextLaba = isLabaEligible ? calculateAdminFee(tariffProfile, selectedRow.nominal) : 0;
                       handleUpdateRow(selectedRow, opt.val, selectedRow.nominal);
                       setSelectedRow(prev => prev ? { ...prev, transaksi: opt.val, laba: nextLaba } : null);
                     }}
@@ -263,7 +270,7 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
       {/* Keypad Modal */}
       <KeypadModal
         isOpen={isKeypadOpen}
-        title={keypadTarget === 'aldea' ? `Ubah Saldo Fisik ${channel}` : `Nominal Baris #${selectedRow?.baris}`}
+        title={keypadTarget === 'aldea' ? `Ubah Saldo Fisik ${channelName}` : `Nominal Baris #${selectedRow?.baris}`}
         initialValue={keypadTarget === 'aldea' ? aldeaActual : (selectedRow?.nominal || 0)}
         onClose={() => setIsKeypadOpen(false)}
         onConfirm={(val) => {
@@ -271,7 +278,7 @@ export const TransactionScreen: React.FC<TransactionScreenProps> = ({ channel })
             handleSaveAldea(val);
           } else if (selectedRow) {
             const isLabaEligible = selectedRow.transaksi === 'transfer' || selectedRow.transaksi === 'tarik';
-            const nextLaba = isLabaEligible ? calculateAdminFee(channel, val) : 0;
+            const nextLaba = isLabaEligible ? calculateAdminFee(tariffProfile, val) : 0;
             handleUpdateRow(selectedRow, selectedRow.transaksi, val);
             setSelectedRow(prev => prev ? { ...prev, nominal: val, laba: nextLaba } : null);
           }

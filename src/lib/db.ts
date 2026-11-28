@@ -43,8 +43,8 @@ export async function initializeDatabase() {
 
   await db.products.bulkAdd(defaultProducts);
 
-  // Inisialisasi 20 baris kosong per channel transaksi
-  const channels: ('Bank' | 'Dana' | 'Ovo' | 'BCA')[] = ['Bank', 'Dana', 'Ovo', 'BCA'];
+  // Inisialisasi 20 baris kosong untuk channel transaksi bawaan (Bank & Dana)
+  const channels = ['Bank', 'Dana'];
   const initialRows: TxRow[] = [];
   for (const ch of channels) {
     for (let i = 1; i <= 20; i++) {
@@ -66,8 +66,6 @@ export async function initializeDatabase() {
   await db.meta.put({ key: 'initialized', value: true });
   await db.meta.put({ key: 'aldea_saldo_bank', value: 0 });
   await db.meta.put({ key: 'aldea_saldo_dana', value: 0 });
-  await db.meta.put({ key: 'aldea_saldo_ovo', value: 0 });
-  await db.meta.put({ key: 'aldea_saldo_bca', value: 0 });
   await db.meta.put({ key: 'pulsa_saldo_awal', value: 0 });
   await db.meta.put({ key: 'qris_saldo_awal', value: 0 });
 }

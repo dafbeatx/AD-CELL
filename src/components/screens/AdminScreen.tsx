@@ -1,10 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { BANK_TARIFFS, DANA_OVO_TARIFFS } from '../../lib/tariffs';
+import {
+  getTariffs,
+  saveTariffs,
+  resetTariffsToDefault
+} from '../../lib/tariffs';
 import { Money } from '../../lib/money';
+import { Tariff, TariffConfig } from '../../types';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { changePassword } from '../../lib/auth';
-import { ShieldCheck, Cloud, Database, Lock, KeyRound, CheckCircle, AlertCircle, Send } from 'lucide-react';
+import {
+  ShieldCheck,
+  Cloud,
+  Database,
+  Lock,
+  KeyRound,
+  CheckCircle,
+  AlertCircle,
+  Send,
+  Plus,
+  Trash2,
+  Save,
+  RotateCcw,
+  SlidersHorizontal
+} from 'lucide-react';
 import { getTelegramConfig, saveTelegramConfig, testTelegramConnection } from '../../lib/telegram';
+import { ConfirmModal } from '../ConfirmModal';
+import { ChannelManagerModal } from '../ChannelManagerModal';
 
 interface AdminScreenProps {
   onBack: () => void;
@@ -12,6 +33,20 @@ interface AdminScreenProps {
 
 export const AdminScreen: React.FC<AdminScreenProps> = () => {
   const [activeTab, setActiveTab] = useState<'tarif' | 'security' | 'telegram' | 'cloud'>('tarif');
+
+  // State Pengaturan Tarif Admin
+  const [tariffDraft, setTariffDraft] = useState<TariffConfig>(() => getTariffs());
+  const [tariffStatus, setTariffStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [tariffSaving, setTariffSaving] = useState(false);
+  const [isChannelManagerOpen, setIsChannelManagerOpen] = useState(false);
+
+  // Confirm Dialog Reusable
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    variant: 'primary' | 'danger';
+    action: () => Promise<void>;
+  } | null>(null);
 
   // State Ubah Password
   const [oldPassword, setOldPassword] = useState('');
@@ -30,7 +65,111 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
     const cfg = getTelegramConfig();
     setTelegramToken(cfg.botToken);
     setTelegramChatId(cfg.chatId);
+
+    const handleConfigUpdate = () => setTariffDraft(getTariffs());
+    window.addEventListener('aldea-config-updated', handleConfigUpdate);
+    return () => window.removeEventListener('aldea-config-updated', handleConfigUpdate);
   }, []);
+
+  const updateTariffRow = (
+    group: 'bank' | 'dana',
+    idx: number,
+    field: keyof Tariff,
+    rawVal: string
+  ) => {
+    const num = parseInt(rawVal.replace(/[^0-9]/g, ''), 10) || 0;
+    setTariffDraft(prev => {
+      const nextList = [...prev[group]];
+      nextList[idx] = { ...nextList[idx], [field]: num };
+      return { ...prev, [group]: nextList };
+    });
+    setTariffStatus(null);
+  };
+
+  const addTariffRow = (group: 'bank' | 'dana') => {
+    setTariffDraft(prev => {
+      const list = prev[group];
+      const lastMax = list.length > 0 ? list[list.length - 1].maksimal : 0;
+      const nextRow: Tariff = {
+        minimal: lastMax + 1,
+        maksimal: lastMax + 1000,
+        admin: list.length > 0 ? list[list.length - 1].admin + 5 : 5
+      };
+      return { ...prev, [group]: [...list, nextRow] };
+    });
+    setTariffStatus(null);
+  };
+
+  const removeTariffRow = (group: 'bank' | 'dana', idx: number) => {
+    setTariffDraft(prev => {
+      if (prev[group].length <= 1) return prev;
+      return {
+        ...prev,
+        [group]: prev[group].filter((_, i) => i !== idx)
+      };
+    });
+    setTariffStatus(null);
+  };
+
+  const requestSaveTariffs = () => {
+    setTariffStatus(null);
+    setConfirmState({
+      title: 'Konfirmasi Simpan Tarif Admin',
+      message: 'Simpan perubahan tarif admin Bank & Dana?\nPerubahan akan langsung aktif untuk transaksi baru dan disinkronkan ke Supabase.',
+      variant: 'primary',
+      action: async () => {
+        setTariffSaving(true);
+        try {
+          const res = await saveTariffs(tariffDraft);
+          if (res.error && !res.cloudSaved && isSupabaseConfigured) {
+            setTariffDraft(getTariffs());
+            setTariffStatus({
+              type: 'error',
+              msg: `Tersimpan lokal, namun gagal sinkron cloud: ${res.error}`
+            });
+          } else if (res.error) {
+            setTariffStatus({ type: 'error', msg: res.error });
+          } else {
+            setTariffDraft(getTariffs());
+            setTariffStatus({
+              type: 'success',
+              msg: res.cloudSaved
+                ? 'Tarif admin berhasil disimpan & disinkronkan ke Supabase!'
+                : 'Tarif admin berhasil disimpan secara lokal.'
+            });
+          }
+        } finally {
+          setTariffSaving(false);
+          setConfirmState(null);
+        }
+      }
+    });
+  };
+
+  const requestResetTariffs = () => {
+    setTariffStatus(null);
+    setConfirmState({
+      title: 'Konfirmasi Reset Tarif Bawaan',
+      message: 'Kembalikan semua tarif admin Bank & Dana ke daftar bawaan pabrik?',
+      variant: 'danger',
+      action: async () => {
+        setTariffSaving(true);
+        try {
+          const res = await resetTariffsToDefault();
+          setTariffDraft(getTariffs());
+          setTariffStatus({
+            type: 'success',
+            msg: res.cloudSaved
+              ? 'Tarif dikembalikan ke bawaan & tersinkron ke Supabase.'
+              : 'Tarif dikembalikan ke bawaan secara lokal.'
+          });
+        } finally {
+          setTariffSaving(false);
+          setConfirmState(null);
+        }
+      }
+    });
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,10 +217,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
 
     setTelegramLoading(true);
     try {
-      // 1. Simpan konfigurasi ke local storage & cloud
       await saveTelegramConfig(token, cid);
-
-      // 2. Kirim pesan tes real ke Telegram API
       const testRes = await testTelegramConnection(token, cid);
       if (testRes.success) {
         setTelegramStatus({ type: 'success', msg: testRes.message });
@@ -95,6 +231,72 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
     }
   };
 
+  const renderTariffEditor = (title: string, group: 'bank' | 'dana') => {
+    const rows = tariffDraft[group];
+    return (
+      <div className="bg-white rounded-xl border border-[#E0E7F2] p-3 shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-extrabold text-xs text-[#09275F] uppercase">{title}</h4>
+            <p className="text-[10px] text-[#6F7C92]">Satuan ribuan (contoh: 500 = {Money.ribuan(500)})</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => addTariffRow(group)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#EBF1FD] text-[#1749B5] hover:bg-blue-100 text-[11px] font-bold btn-press"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Tambah</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-12 gap-1.5 text-[10px] font-bold text-[#6F7C92] uppercase px-1">
+          <div className="col-span-4">Min (rb)</div>
+          <div className="col-span-4">Maks (rb)</div>
+          <div className="col-span-3">Admin (rb)</div>
+          <div className="col-span-1"></div>
+        </div>
+
+        <div className="space-y-1.5 font-tabular">
+          {rows.map((t, idx) => (
+            <div key={idx} className="grid grid-cols-12 gap-1.5 items-center">
+              <input
+                type="number"
+                min={0}
+                value={t.minimal}
+                onChange={e => updateTariffRow(group, idx, 'minimal', e.target.value)}
+                className="col-span-4 h-9 px-2 bg-[#F6F8FC] border border-[#E0E7F2] focus:ring-1 focus:ring-[#1749B5] rounded-lg text-xs font-bold text-[#09275F] outline-none"
+              />
+              <input
+                type="number"
+                min={0}
+                value={t.maksimal}
+                onChange={e => updateTariffRow(group, idx, 'maksimal', e.target.value)}
+                className="col-span-4 h-9 px-2 bg-[#F6F8FC] border border-[#E0E7F2] focus:ring-1 focus:ring-[#1749B5] rounded-lg text-xs font-bold text-[#09275F] outline-none"
+              />
+              <input
+                type="number"
+                min={0}
+                value={t.admin}
+                onChange={e => updateTariffRow(group, idx, 'admin', e.target.value)}
+                className="col-span-3 h-9 px-2 bg-blue-50/70 border border-blue-200 focus:ring-1 focus:ring-[#1749B5] rounded-lg text-xs font-black text-[#1749B5] outline-none"
+              />
+              <button
+                type="button"
+                disabled={rows.length <= 1}
+                onClick={() => removeTariffRow(group, idx)}
+                className="col-span-1 h-9 flex items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 disabled:opacity-30 btn-press"
+                title="Hapus baris"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const currentTgConfig = getTelegramConfig();
 
   return (
@@ -103,7 +305,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
       <div className="bg-[#09275F] text-white p-4 rounded-xl flex items-center justify-between shadow-xs">
         <div>
           <h3 className="font-extrabold text-base">Panel Pengaturan Admin</h3>
-          <p className="text-xs text-blue-200">Tarif, Password, Telegram & Cloud</p>
+          <p className="text-xs text-blue-200">Tarif, Modul Transaksi, Password & Cloud</p>
         </div>
         <ShieldCheck className="w-7 h-7 text-amber-400" />
       </div>
@@ -147,39 +349,62 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
         </button>
       </div>
 
-      {/* TAB 1: TARIF */}
+      {/* TAB 1: PENGATURAN TARIF & CHANNEL */}
       {activeTab === 'tarif' && (
         <div className="space-y-3">
-          <div className="bg-white rounded-xl border border-[#E0E7F2] p-3 shadow-xs">
-            <h4 className="font-bold text-xs text-[#09275F] uppercase mb-2">Tarif Bank & BCA</h4>
-            <div className="divide-y divide-[#E0E7F2] text-xs font-tabular">
-              <div className="grid grid-cols-2 pb-1 font-bold text-[#6F7C92]">
-                <span>Rentang Nominal</span>
-                <span className="text-right">Biaya Admin</span>
+          {/* Pintasan Kelola Modul Transaksi */}
+          <button
+            type="button"
+            onClick={() => setIsChannelManagerOpen(true)}
+            className="w-full p-3 bg-white border border-[#E0E7F2] hover:border-[#1749B5] rounded-xl shadow-xs flex items-center justify-between btn-press"
+          >
+            <div className="flex items-center gap-2.5 text-left">
+              <div className="w-9 h-9 rounded-lg bg-[#EBF1FD] text-[#1749B5] flex items-center justify-center">
+                <SlidersHorizontal className="w-4 h-4" />
               </div>
-              {BANK_TARIFFS.map((t, idx) => (
-                <div key={idx} className="grid grid-cols-2 py-1.5">
-                  <span>{Money.ribuan(t.minimal)} - {Money.ribuan(t.maksimal)}</span>
-                  <span className="text-right font-black text-[#1749B5]">{Money.ribuan(t.admin)}</span>
-                </div>
-              ))}
+              <div>
+                <div className="font-extrabold text-xs text-[#09275F]">Kelola Modul Transaksi</div>
+                <div className="text-[11px] text-[#6F7C92]">Tambah channel, rename, & pilih tarif Bank/Dana</div>
+              </div>
             </div>
-          </div>
+            <span className="px-2 py-1 rounded-lg bg-[#1749B5] text-white text-[10px] font-bold">Buka</span>
+          </button>
 
-          <div className="bg-white rounded-xl border border-[#E0E7F2] p-3 shadow-xs">
-            <h4 className="font-bold text-xs text-[#09275F] uppercase mb-2">Tarif Dana & OVO</h4>
-            <div className="divide-y divide-[#E0E7F2] text-xs font-tabular">
-              <div className="grid grid-cols-2 pb-1 font-bold text-[#6F7C92]">
-                <span>Rentang Nominal</span>
-                <span className="text-right">Biaya Admin</span>
-              </div>
-              {DANA_OVO_TARIFFS.map((t, idx) => (
-                <div key={idx} className="grid grid-cols-2 py-1.5">
-                  <span>{Money.ribuan(t.minimal)} - {Money.ribuan(t.maksimal)}</span>
-                  <span className="text-right font-black text-[#1749B5]">{Money.ribuan(t.admin)}</span>
-                </div>
-              ))}
+          {renderTariffEditor('Tarif Admin Bank', 'bank')}
+          {renderTariffEditor('Tarif Admin Dana', 'dana')}
+
+          {tariffStatus && (
+            <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+              tariffStatus.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}>
+              {tariffStatus.type === 'success' ? (
+                <CheckCircle className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span>{tariffStatus.msg}</span>
             </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={requestResetTariffs}
+              className="col-span-1 h-11 bg-white border border-[#E0E7F2] hover:bg-slate-50 text-[#6F7C92] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 btn-press"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+            <button
+              type="button"
+              onClick={requestSaveTariffs}
+              className="col-span-2 h-11 bg-[#1749B5] hover:bg-[#09275F] text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs btn-press"
+            >
+              <Save className="w-4 h-4" />
+              <span>Simpan Tarif Admin</span>
+            </button>
           </div>
         </div>
       )}
@@ -280,7 +505,6 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
             </span>
           </div>
 
-          {/* Panduan Ringkas & Penjelasan Tombol Start */}
           <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-sky-950 space-y-2 text-xs">
             <div className="font-bold text-[12px] flex items-center gap-1.5 text-sky-900">
               <span>💡 Panduan Telegram Bot Aldea POS</span>
@@ -350,13 +574,12 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
             </button>
           </form>
 
-          {/* Kotak Info Realtime Trigger */}
           <div className="pt-2 border-t border-[#E0E7F2]">
             <p className="text-[11px] font-bold text-[#09275F] mb-1.5">Laporan Yang Otomatis Dikirim:</p>
             <div className="grid grid-cols-2 gap-2 text-[10px] text-[#6F7C92]">
               <div className="bg-slate-50 p-2 rounded-lg border border-[#E0E7F2]">
                 <span className="font-bold text-[#182338]">💳 Transaksi Keuangan</span>
-                <p>Tarik & setor Bank, Dana, OVO, BCA</p>
+                <p>Tarik & transfer di semua channel</p>
               </div>
               <div className="bg-slate-50 p-2 rounded-lg border border-[#E0E7F2]">
                 <span className="font-bold text-[#182338]">📦 Penjualan Fisik</span>
@@ -408,7 +631,7 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
               <span>Skema Database SQL</span>
             </div>
             <p className="text-[11px] text-blue-800/80">
-              File <code className="font-semibold">supabase/schema.sql</code> sudah dibuat. Anda tinggal menyalin isinya dan menjalankan di SQL Editor pada dashboard Supabase Anda.
+              File <code className="font-semibold">supabase/schema.sql</code> sudah diperbarui agar mendukung channel tambahan secara fleksibel di cloud.
             </p>
           </div>
 
@@ -422,6 +645,25 @@ export const AdminScreen: React.FC<AdminScreenProps> = () => {
           </button>
         </div>
       )}
+
+      {/* Modal Kelola Channel Transaksi */}
+      <ChannelManagerModal
+        isOpen={isChannelManagerOpen}
+        onClose={() => setIsChannelManagerOpen(false)}
+      />
+
+      {/* Modal Konfirmasi Tarif */}
+      <ConfirmModal
+        isOpen={Boolean(confirmState)}
+        title={confirmState?.title || ''}
+        message={confirmState?.message || ''}
+        variant={confirmState?.variant || 'primary'}
+        loading={tariffSaving}
+        onCancel={() => setConfirmState(null)}
+        onConfirm={() => {
+          confirmState?.action();
+        }}
+      />
     </div>
   );
 };

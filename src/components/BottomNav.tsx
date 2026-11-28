@@ -9,7 +9,7 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate }) => {
   const navItems = [
     { id: 'dashboard', label: 'Menu', icon: LayoutGrid },
-    { id: 'tx-bank', label: 'Transaksi', icon: ArrowLeftRight },
+    { id: 'tx:Bank', label: 'Transaksi', icon: ArrowLeftRight },
     { id: 'product-acc', label: 'Produk', icon: Package },
     { id: 'kasbon', label: 'Kasbon', icon: BookOpen },
     { id: 'total', label: 'Totalan', icon: Calculator },
@@ -17,7 +17,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentScreen, onNavigate 
 
   const isActive = (id: string) => {
     if (id === 'dashboard') return currentScreen === 'dashboard';
-    if (id === 'tx-bank') return currentScreen.startsWith('tx-') || currentScreen === 'pulsa' || currentScreen === 'qris';
+    if (id === 'tx:Bank') return currentScreen.startsWith('tx:') || currentScreen === 'pulsa' || currentScreen === 'qris';
     if (id === 'product-acc') return currentScreen.startsWith('product-');
     if (id === 'kasbon') return currentScreen === 'kasbon';
     if (id === 'total') return currentScreen === 'total';

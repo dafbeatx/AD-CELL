@@ -1,18 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Smartphone, 
-  QrCode, 
-  Receipt, 
-  BookOpen, 
+import {
+  Smartphone,
+  QrCode,
+  Receipt,
+  BookOpen,
   Calculator,
   Package,
   Layers,
   ChevronRight,
   TrendingUp,
-  CreditCard
+  CreditCard,
+  SlidersHorizontal
 } from 'lucide-react';
 import { db } from '../../lib/db';
 import { Money } from '../../lib/money';
+import { getChannels } from '../../lib/channels';
+import { TxChannelConfig } from '../../types';
+import { ChannelManagerModal } from '../ChannelManagerModal';
 
 interface DashboardScreenProps {
   onNavigate: (screen: string) => void;
@@ -24,19 +28,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     laba: 0,
     piutangKasbon: 0
   });
+  const [channels, setChannels] = useState<TxChannelConfig[]>(() => getChannels());
+  const [isManagerOpen, setIsManagerOpen] = useState(false);
 
   useEffect(() => {
     async function loadQuickStats() {
-      // Hitung total piutang kasbon belum lunas
       const unpaid = await db.kasbon.filter(k => !k.lunas).toArray();
       const totalKasbon = unpaid.reduce((sum, item) => sum + item.nominal, 0);
 
-      // Hitung produk terjual
       const products = await db.products.toArray();
       const productOmset = products.reduce((sum, p) => sum + p.omset, 0);
       const productLaba = products.reduce((sum, p) => sum + p.laba, 0);
 
-      // Hitung transaksi (hanya transfer dan tarik yang menghasilkan laba fee)
       const txs = await db.transactions.toArray();
       const txLaba = txs.reduce((sum, t) => {
         const isLabaEligible = t.transaksi === 'transfer' || t.transaksi === 'tarik';
@@ -50,7 +53,45 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       });
     }
     loadQuickStats();
+
+    const handleConfigUpdate = () => setChannels(getChannels());
+    window.addEventListener('aldea-config-updated', handleConfigUpdate);
+    return () => window.removeEventListener('aldea-config-updated', handleConfigUpdate);
   }, []);
+
+  const handleOpenChannel = (ch: TxChannelConfig) => {
+    if (ch.kind === 'pulsa') {
+      onNavigate('pulsa');
+    } else if (ch.kind === 'qris') {
+      onNavigate('qris');
+    } else {
+      onNavigate(`tx:${ch.id}`);
+    }
+  };
+
+  const renderChannelBadge = (ch: TxChannelConfig) => {
+    if (ch.kind === 'pulsa') {
+      return (
+        <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+          <Smartphone className="w-4 h-4" />
+        </div>
+      );
+    }
+    if (ch.kind === 'qris') {
+      return (
+        <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0">
+          <QrCode className="w-4 h-4" />
+        </div>
+      );
+    }
+    const shortCode = ch.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase() || 'TX';
+    const bgClass = ch.tariffProfile === 'Dana' ? 'bg-sky-600' : 'bg-[#09275F]';
+    return (
+      <div className={`w-8 h-8 rounded-lg ${bgClass} text-white flex items-center justify-center font-bold text-xs shrink-0`}>
+        {shortCode}
+      </div>
+    );
+  };
 
   return (
     <div className="pb-24 pt-3 px-3.5 max-w-md mx-auto space-y-4">
@@ -129,107 +170,41 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         </div>
       </div>
 
-      {/* SECTION: TRANSAKSI KEUANGAN */}
+      {/* SECTION: TRANSAKSI KEUANGAN (DINAMIS) */}
       <div className="space-y-1.5">
-        <div className="text-[11px] font-bold text-[#1749B5] tracking-wider uppercase px-1">
-          Transaksi Perbankan & Dompet Digital
+        <div className="flex items-center justify-between px-1">
+          <div className="text-[11px] font-bold text-[#1749B5] tracking-wider uppercase">
+            Modul Transaksi
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsManagerOpen(true)}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#EBF1FD] text-[#1749B5] hover:bg-blue-100 text-[11px] font-extrabold btn-press"
+          >
+            <SlidersHorizontal className="w-3 h-3" />
+            <span>Tambah / Rename</span>
+          </button>
         </div>
+
         <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => onNavigate('tx-bank')}
-            className="bg-white p-3 rounded-xl border border-[#E0E7F2] flex items-center justify-between hover:border-[#1749B5] btn-press shadow-xs"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#09275F] text-white flex items-center justify-center font-bold text-xs">
-                BNK
+          {channels.map((ch) => (
+            <button
+              key={ch.id}
+              onClick={() => handleOpenChannel(ch)}
+              className="bg-white p-3 rounded-xl border border-[#E0E7F2] flex items-center justify-between hover:border-[#1749B5] btn-press shadow-xs"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                {renderChannelBadge(ch)}
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-bold text-[#182338] truncate">{ch.name}</div>
+                  <div className="text-[11px] text-[#6F7C92] truncate">
+                    {ch.kind === 'ledger' ? `Admin ${ch.tariffProfile}` : ch.subtitle}
+                  </div>
+                </div>
               </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-[#182338]">Bank</div>
-                <div className="text-[11px] text-[#6F7C92]">Tarik/Transfer</div>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-[#6F7C92]" />
-          </button>
-
-          <button
-            onClick={() => onNavigate('tx-dana')}
-            className="bg-white p-3 rounded-xl border border-[#E0E7F2] flex items-center justify-between hover:border-[#1749B5] btn-press shadow-xs"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-xs">
-                DAN
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-[#182338]">Dana</div>
-                <div className="text-[11px] text-[#6F7C92]">Top up / Tarik</div>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-[#6F7C92]" />
-          </button>
-
-          <button
-            onClick={() => onNavigate('tx-ovo')}
-            className="bg-white p-3 rounded-xl border border-[#E0E7F2] flex items-center justify-between hover:border-[#1749B5] btn-press shadow-xs"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-purple-700 text-white flex items-center justify-center font-bold text-xs">
-                OVO
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-[#182338]">Ovo</div>
-                <div className="text-[11px] text-[#6F7C92]">Dompet Digital</div>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-[#6F7C92]" />
-          </button>
-
-          <button
-            onClick={() => onNavigate('tx-bca')}
-            className="bg-white p-3 rounded-xl border border-[#E0E7F2] flex items-center justify-between hover:border-[#1749B5] btn-press shadow-xs"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-blue-800 text-white flex items-center justify-center font-bold text-xs">
-                BCA
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-[#182338]">BCA</div>
-                <div className="text-[11px] text-[#6F7C92]">Setor / Bagi</div>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-[#6F7C92]" />
-          </button>
-
-          <button
-            onClick={() => onNavigate('pulsa')}
-            className="bg-white p-3 rounded-xl border border-[#E0E7F2] flex items-center justify-between hover:border-[#1749B5] btn-press shadow-xs"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
-                <Smartphone className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-[#182338]">Pulsa</div>
-                <div className="text-[11px] text-[#6F7C92]">Isi & Pemakaian</div>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-[#6F7C92]" />
-          </button>
-
-          <button
-            onClick={() => onNavigate('qris')}
-            className="bg-white p-3 rounded-xl border border-[#E0E7F2] flex items-center justify-between hover:border-[#1749B5] btn-press shadow-xs"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center">
-                <QrCode className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold text-[#182338]">QRIS</div>
-                <div className="text-[11px] text-[#6F7C92]">Bayar & Tarik</div>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-[#6F7C92]" />
-          </button>
+              <ChevronRight className="w-4 h-4 text-[#6F7C92] shrink-0" />
+            </button>
+          ))}
         </div>
       </div>
 
@@ -275,6 +250,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         <Calculator className="w-5 h-5 text-amber-400" />
         <span>TOTALKAN HARI INI / CLOSING</span>
       </button>
+
+      {/* Modal Tambah / Rename / Hapus Channel */}
+      <ChannelManagerModal
+        isOpen={isManagerOpen}
+        onClose={() => setIsManagerOpen(false)}
+        onChanged={() => setChannels(getChannels())}
+      />
     </div>
   );
 };

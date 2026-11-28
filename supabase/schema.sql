@@ -50,7 +50,7 @@ create table if not exists public.product_sales (
 -- 5. TABEL TRANSAKSI KEUANGAN
 create table if not exists public.financial_transactions (
     id text primary key,
-    channel text not null check (channel in ('Bank', 'Dana', 'Ovo', 'BCA')),
+    channel text not null,
     baris int not null,
     saldo_awal bigint not null default 0,
     transaksi text,
